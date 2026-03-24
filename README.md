@@ -4,6 +4,17 @@
 
 <p>Un sistema inteligente y progresivo que gestiona todo el flujo de trabajo de revisión por pares, diseñado como una <strong>Progressive Web App (PWA)</strong> para ofrecer una experiencia nativa en todos los dispositivos, con capacidades offline-first, notificaciones push, y sincronización en segundo plano.</p> <p>El sistema utiliza LLMs para asistir en detección de conflictos de interés, emparejamiento automático de revisores, análisis de calidad de revisiones, y detección de plagio, permitiendo a editores y revisores trabajar desde cualquier lugar, incluso sin conexión a internet.</p>
 
+### Equipo de trabajo
+
+- **Product Owner (PO):** `José Carlos Ponce Odohui`
+- **Scrum Master (SM):** `Alexandra Martínez Zavala`
+- **Dev Team:**
+	- `Alejandro Yael Armenta Carrera`
+	- `Astrid Jiménez Barrera`
+	- `Jayson Chico Vargas`
+	- `Jeffrey Jaeho Yoon Guadiana`
+
+
 ## Configuración de IDE recomendado
 
 [VS Code](https://code.visualstudio.com/) + [Vue (Official)](https://marketplace.visualstudio.com/items?itemName=Vue.volar) (sin Vetur).
@@ -25,3 +36,4 @@ Para correr en modo Producción lanza el siguiente comando:
 ```sh
 npm run build
 ```
+
