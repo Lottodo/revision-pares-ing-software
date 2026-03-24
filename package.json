@@ -9,6 +9,9 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "cors": "^2.8.6",
+    "express": "^5.2.1",
+    "jsonwebtoken": "^9.0.3",
     "vue": "^3.5.30",
     "vue-router": "^5.0.3"
   },

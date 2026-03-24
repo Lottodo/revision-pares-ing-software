@@ -1,23 +1,25 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import HomeView from '../views/HomeView.vue'
+import SubirArticulo from '../views/SubirArticulo.vue'
+import EstadoArticulos from '../views/EstadoArticulos.vue' // Importamos tu nueva vista
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
     {
       path: '/',
-      name: 'home',
-      component: HomeView,
+      redirect: '/subir-articulo' // Arregla el error de la consola
     },
     {
-      path: '/about',
-      name: 'about',
-      // route level code-splitting
-      // this generates a separate chunk (About.[hash].js) for this route
-      // which is lazy-loaded when the route is visited.
-      component: () => import('../views/AboutView.vue'),
+      path: '/subir-articulo',
+      name: 'subir-articulo',
+      component: SubirArticulo
     },
-  ],
+    {
+      path: '/estado-articulos',
+      name: 'estado-articulos',
+      component: EstadoArticulos // Tu nueva tarea
+    }
+  ]
 })
 
 export default router
