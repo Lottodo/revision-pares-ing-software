@@ -1,38 +1,27 @@
-# revision-pares-ing-software
+# Sistema de Revisión por Pares Asistido por IA para Congresos y Revistas Científicas (PWA-Native)
 
-This template should help get you started developing with Vue 3 in Vite.
+## Visión General
 
-## Recommended IDE Setup
+<p>Un sistema inteligente y progresivo que gestiona todo el flujo de trabajo de revisión por pares, diseñado como una <strong>Progressive Web App (PWA)</strong> para ofrecer una experiencia nativa en todos los dispositivos, con capacidades offline-first, notificaciones push, y sincronización en segundo plano.</p> <p>El sistema utiliza LLMs para asistir en detección de conflictos de interés, emparejamiento automático de revisores, análisis de calidad de revisiones, y detección de plagio, permitiendo a editores y revisores trabajar desde cualquier lugar, incluso sin conexión a internet.</p>
 
-[VS Code](https://code.visualstudio.com/) + [Vue (Official)](https://marketplace.visualstudio.com/items?itemName=Vue.volar) (and disable Vetur).
+## Configuración de IDE recomendado
 
-## Recommended Browser Setup
+[VS Code](https://code.visualstudio.com/) + [Vue (Official)](https://marketplace.visualstudio.com/items?itemName=Vue.volar) (sin Vetur).
 
-- Chromium-based browsers (Chrome, Edge, Brave, etc.):
-  - [Vue.js devtools](https://chromewebstore.google.com/detail/vuejs-devtools/nhdogjmejiglipccpnnnanhbledajbpd)
-  - [Turn on Custom Object Formatter in Chrome DevTools](http://bit.ly/object-formatters)
-- Firefox:
-  - [Vue.js devtools](https://addons.mozilla.org/en-US/firefox/addon/vue-js-devtools/)
-  - [Turn on Custom Object Formatter in Firefox DevTools](https://fxdx.dev/firefox-devtools-custom-object-formatters/)
+Es necesario tener instalado [Node.js](https://nodejs.org/es/download) para poder desarrollar y lanzar el proyecto.
 
-## Customize configuration
+## Cómo lanzar:
 
-See [Vite Configuration Reference](https://vite.dev/config/).
-
-## Project Setup
-
+Primero debes instalar las dependencias, utilizando este comando estando en la raíz del proyecto:
 ```sh
 npm install
 ```
-
-### Compile and Hot-Reload for Development
-
+Una vez instaladas, en la misma raíz del proyecto, lanza el siguiente comando para correr el servidor en modo de desarrollo:
 ```sh
 npm run dev
 ```
 
-### Compile and Minify for Production
-
+Para correr en modo Producción lanza el siguiente comando:
 ```sh
 npm run build
 ```
