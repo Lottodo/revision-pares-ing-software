@@ -1,13 +1,14 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import SubirArticulo from '../views/SubirArticulo.vue'
-import EstadoArticulos from '../views/EstadoArticulos.vue' // Importamos tu nueva vista
+import EstadoArticulos from '../views/EstadoArticulos.vue'
+import ArticulosAsignados from '../views/ArticulosAsignados.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
     {
       path: '/',
-      redirect: '/subir-articulo' // Arregla el error de la consola
+      redirect: '/subir-articulo' 
     },
     {
       path: '/subir-articulo',
@@ -17,7 +18,12 @@ const router = createRouter({
     {
       path: '/estado-articulos',
       name: 'estado-articulos',
-      component: EstadoArticulos // Tu nueva tarea
+      component: EstadoArticulos 
+    },
+    { 
+      path: '/articulos-asignados',
+      name: 'articulos-asignados',
+      component: ArticulosAsignados
     }
   ]
 })
