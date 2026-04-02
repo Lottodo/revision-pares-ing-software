@@ -59,4 +59,20 @@ app.get('/api/articulos-asignados', verificarToken, (req, res) => {
     ]);
 });
 
+// 4. Endpoint (TAREA 2313): Enviar Evaluación de Artículo (Revisor)
+app.post('/api/evaluar', verificarToken, (req, res) => {
+    if (req.user.role !== 'revisor') return res.status(403).json({ error: "Acceso solo para revisores" });
+    
+    const { articuloId, veredicto, comentarios } = req.body;
+
+    // Aquí en el futuro guardaríamos en una base de datos real.
+    // Por ahora, simulamos que todo salió bien.
+    console.log(`Nueva evaluación recibida:
+    - Artículo ID: ${articuloId}
+    - Veredicto: ${veredicto}
+    - Comentarios: ${comentarios}`);
+
+    res.json({ mensaje: "Evaluación enviada con éxito. El editor ha sido notificado." });
+});
+
 app.listen(3000, () => console.log('Servidor PoC corriendo en http://localhost:3000'));
