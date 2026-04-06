@@ -6,6 +6,7 @@
         <router-link to="/subir-articulo" class="nav-link">📤 Subir Artículo</router-link>
         <router-link to="/estado-articulos" class="nav-link">📊 Ver Estado</router-link>
         <router-link to="/articulos-asignados" class="nav-link">📋 Tareas Revisor</router-link>
+        <router-link to="/editor" class="nav-link">🗂️ Panel Editor</router-link>
       </nav>
     </header>
 
