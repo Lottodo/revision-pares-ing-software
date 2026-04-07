@@ -55,7 +55,7 @@ onMounted(async () => {
     const token = localStorage.getItem('jwt_token');
     // Intentamos pedir los datos al backend
     const respuesta = await fetch('http://localhost:3000/api/mis-articulos', {
-      headers: { 'Authorization': token }
+      headers: { 'Authorization': `Bearer ${token}` }
     });
 
     if (respuesta.ok) {

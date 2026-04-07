@@ -328,8 +328,8 @@ onMounted(async () => {
   try {
     const token = localStorage.getItem('jwt_token');
     const [resArts, resRevs] = await Promise.all([
-      fetch('http://localhost:3000/api/articulos', { headers: { Authorization: token } }),
-      fetch('http://localhost:3000/api/revisores',  { headers: { Authorization: token } })
+      fetch('http://localhost:3000/api/articulos', { headers: { 'Authorization': `Bearer ${token}` } }),
+      fetch('http://localhost:3000/api/revisores',  { headers: { 'Authorization': `Bearer ${token}` } })
     ]);
     if (resArts.ok && resRevs.ok) {
       articulos.value = await resArts.json();

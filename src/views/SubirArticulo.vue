@@ -86,6 +86,48 @@ const manejarArchivo = (evento) => {
   }
 };
 
+// Función para obtener token (autenticarse)
+const obtenerTokenAutor = async () => {
+  try {
+    let token = localStorage.getItem('jwt_token');
+    
+    if (token) {
+      console.log('Token encontrado en localStorage. Usando token existente.');
+      console.log('Token final a usar:', token);
+      return token;
+    }
+    
+    console.log('No hay token en localStorage. Intentando login automático...');
+    return await hacerLoginAutomatico();
+  } catch (error) {
+    console.error('Error al obtener token:', error);
+    // Si hay error, limpiar localStorage y reintentar
+    localStorage.removeItem('jwt_token');
+    throw error;
+  }
+};
+
+// Función auxiliar: hacer login automático
+const hacerLoginAutomatico = async () => {
+  const loginRes = await fetch('http://localhost:3000/api/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username: "autor1", password: "1234" })
+  });
+  
+  console.log('Respuesta del login:', loginRes.status);
+  const loginData = await loginRes.json();
+  console.log('Datos del login:', loginData);
+  
+  if (!loginRes.ok || !loginData.token) {
+    throw new Error(loginData.error || 'No se pudo autenticar');
+  }
+  
+  console.log('Token obtenido:', loginData.token);
+  localStorage.setItem('jwt_token', loginData.token);
+  return loginData.token;
+};
+
 // Función para enviar los datos al servidor
 const enviarArticulo = async () => {
   if (!archivoPdf.value || !titulo.value || !resumen.value) {
@@ -98,14 +140,8 @@ const enviarArticulo = async () => {
   mensajeExito.value = '';
 
   try {
-    // 1. Recuperamos el token seguro que guardamos en el login
-    const token = localStorage.getItem('jwt_token');
-
-    if(!token) {
-        mensajeError.value = "No estás autenticado. Por favor inicia sesión.";
-        cargando.value = false;
-        return;
-    }
+    // 1. Obtenemos el token (se autentica automáticamente si no existe)
+    let token = await obtenerTokenAutor();
 
     // 2. Preparamos los datos (FormData es ideal para enviar archivos + texto)
     const formData = new FormData();
@@ -115,13 +151,36 @@ const enviarArticulo = async () => {
     formData.append('documento', archivoPdf.value);
 
     // 3. Enviamos al backend (Ajustaremos esta URL cuando tu compañero de Backend termine su parte)
-    const respuesta = await fetch('http://localhost:3000/api/articulos', {
+    let respuesta = await fetch('http://localhost:3000/api/articulos', {
       method: 'POST',
       headers: {
-        'Authorization': token // ¡Seguridad JWT aplicada!
+        'Authorization': `Bearer ${token}` // ¡Seguridad JWT aplicada!
       },
       body: formData
     });
+
+    // Si recibimos 401, es probable que el token esté expirado
+    // Intentamos hacer login de nuevo
+    if (respuesta.status === 401) {
+      console.warn('Token rechazado (401). Intentando hacer login nuevamente...');
+      localStorage.removeItem('jwt_token'); // Limpiar token inválido
+      token = await hacerLoginAutomatico();
+      
+      // Recrear FormData porque ya está consumida
+      const formData2 = new FormData();
+      formData2.append('titulo', titulo.value.trim());
+      formData2.append('resumen', resumen.value.trim());
+      formData2.append('documento', archivoPdf.value);
+      
+      // Reintentar el upload
+      respuesta = await fetch('http://localhost:3000/api/articulos', {
+        method: 'POST',
+        headers: {
+          'Authorization': `${token}`
+        },
+        body: formData2
+      });
+    }
 
     if (respuesta.ok) {
       mensajeExito.value = "¡Artículo enviado con éxito para su revisión!";
@@ -131,13 +190,15 @@ const enviarArticulo = async () => {
       document.getElementById('archivo').value = '';
       archivoPdf.value = null;
     } else {
+      console.log('Error en respuesta:', respuesta.status);
       const errorData = await respuesta.json();
+      console.log('Datos del error:', errorData);
       mensajeError.value = errorData.error || "Error al subir el artículo.";
     }
 
   } catch (error) {
     console.error("Error de conexión:", error);
-    mensajeError.value = "No se pudo conectar con el servidor.";
+    mensajeError.value = error.message || "No se pudo conectar con el servidor.";
   } finally {
     cargando.value = false;
   }

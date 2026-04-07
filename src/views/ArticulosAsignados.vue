@@ -107,7 +107,7 @@ const enviarEvaluacion = async () => {
       method: 'POST',
       headers: { 
         'Content-Type': 'application/json',
-        'Authorization': token 
+        'Authorization': `Bearer ${token}` 
       },
       body: JSON.stringify({
         articuloId: articuloSeleccionado.value.id,
@@ -144,7 +144,7 @@ onMounted(async () => {
 
     const tokenActual = localStorage.getItem('jwt_token');
     const respuesta = await fetch('http://localhost:3000/api/articulos-asignados', {
-      headers: { 'Authorization': tokenActual }
+      headers: { 'Authorization': `Bearer ${tokenActual}` }
     });
 
     if (respuesta.ok) {

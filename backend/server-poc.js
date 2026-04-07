@@ -78,7 +78,7 @@ app.post('/api/login', async (req, res) => {
         const token = jwt.sign(
             { id: usuario.id, username: usuario.username, role: usuario.rol },
             SECRET_KEY,
-            { expiresIn: '1h' }
+            { expiresIn: '24h' }
         );
 
         return res.json({ mensaje: "Login exitoso", token, role: usuario.rol });
@@ -91,14 +91,26 @@ app.post('/api/login', async (req, res) => {
 // Middleware para proteger rutas
 const verificarToken = (req, res, next) => {
     const authHeader = req.headers['authorization'];
+    console.log('Authorization header:', authHeader);
+    
     const token = authHeader?.startsWith('Bearer ')
         ? authHeader.slice(7)
         : authHeader;
 
-    if (!token) return res.status(403).json({ error: "No hay token, acceso denegado." });
+    if (!token) {
+        console.log('No token encontrado');
+        return res.status(403).json({ error: "No hay token, acceso denegado." });
+    }
 
+    console.log('Token a verificar:', token);
+    console.log('SECRET_KEY usado:', SECRET_KEY);
+    
     jwt.verify(token, SECRET_KEY, (err, decoded) => {
-        if (err) return res.status(401).json({ error: "Token inválido." });
+        if (err) {
+            console.error('Error al verificar token:', err.message);
+            return res.status(401).json({ error: "Token inválido." });
+        }
+        console.log('Token verificado correctamente. Usuario:', decoded);
         req.user = decoded;
         next();
     });
