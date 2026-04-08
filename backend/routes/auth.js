@@ -49,16 +49,12 @@ router.post('/register', async (req, res) => {
     }
 
     // Verificar si ya existe el usuario o el email
-    const existente = await Usuario.findOne({
-      where: { username }
-    });
+    const existente = await Usuario.findOne({ username });
     if (existente) {
       return fail(res, 'El username ya está en uso.', 409);
     }
 
-    const emailExistente = await Usuario.findOne({
-      where: { email }
-    });
+    const emailExistente = await Usuario.findOne({ email });
     if (emailExistente) {
       return fail(res, 'El email ya está registrado.', 409);
     }
@@ -67,15 +63,17 @@ router.post('/register', async (req, res) => {
     const salt = await bcrypt.genSalt(10);
     const passwordHash = await bcrypt.hash(password, salt);
 
-    const nuevoUsuario = await Usuario.create({
+    const nuevoUsuario = new Usuario({
       username: username.trim(),
       email: email.trim().toLowerCase(),
       passwordHash,
       rol: rol || 'autor'
     });
+    
+    await nuevoUsuario.save();
 
     return ok(res, {
-      id: nuevoUsuario.id,
+      id: nuevoUsuario._id,
       username: nuevoUsuario.username,
       email: nuevoUsuario.email,
       rol: nuevoUsuario.rol
@@ -98,9 +96,8 @@ router.post('/login', async (req, res) => {
     }
 
     // Buscar usuario activo
-    const usuario = await Usuario.findOne({
-      where: { username, activo: true }
-    });
+    const usuario = await Usuario.findOne({ username, activo: true });
+    
     if (!usuario) {
       return fail(res, 'Credenciales inválidas.', 401);
     }
@@ -113,7 +110,7 @@ router.post('/login', async (req, res) => {
 
     // Generar JWT
     const token = jwt.sign(
-      { id: usuario.id, username: usuario.username, role: usuario.rol },
+      { id: usuario._id, username: usuario.username, role: usuario.rol },
       JWT_SECRET(),
       { expiresIn: '24h' }
     );
@@ -121,7 +118,7 @@ router.post('/login', async (req, res) => {
     return ok(res, {
       token,
       user: {
-        id: usuario.id,
+        id: usuario._id,
         username: usuario.username,
         email: usuario.email,
         rol: usuario.rol
@@ -135,15 +132,12 @@ router.post('/login', async (req, res) => {
 
 // ─── POST /api/auth/logout ──────────────────────────────────
 router.post('/logout', (_req, res) => {
-  // Logout se maneja del lado del cliente (eliminar token).
-  // Este endpoint existe como placeholder para auditoría futura.
   return ok(res, { message: 'Sesión cerrada. Elimina el token del cliente.' });
 });
 
 // ─── GET /api/auth/me ───────────────────────────────────────
 router.get('/me', async (req, res) => {
   try {
-    // Verificar token manualmente en este endpoint
     const authHeader = req.headers['authorization'];
     const token = authHeader?.startsWith('Bearer ')
       ? authHeader.slice(7)
@@ -161,16 +155,14 @@ router.get('/me', async (req, res) => {
     }
 
     // Obtener datos frescos del usuario
-    const usuario = await Usuario.findByPk(decoded.id, {
-      attributes: ['id', 'username', 'email', 'rol', 'activo']
-    });
+    const usuario = await Usuario.findById(decoded.id).select('-passwordHash');
 
     if (!usuario || !usuario.activo) {
       return fail(res, 'Usuario no encontrado o inactivo.', 404);
     }
 
     return ok(res, {
-      id: usuario.id,
+      id: usuario._id,
       username: usuario.username,
       email: usuario.email,
       rol: usuario.rol

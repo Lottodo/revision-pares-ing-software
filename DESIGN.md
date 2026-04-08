@@ -2,11 +2,12 @@
 
 ## Visión General
 
-Rediseño profesional de la interfaz del Sistema de Revisión por Pares, orientado a una experiencia limpia, moderna y funcional para el contexto académico de la UABC Facultad de Ingeniería Mexicali.
+Rediseño profesional de la interfaz del Sistema de Revisión por Pares, orientado a una experiencia limpia, moderna y funcional para el contexto académico de la UABC Facultad de Ingeniería Mexicali. 
+El sistema adoptará completamente las directrices de diseño plano y consistente (inspirado fuertemente en Google Material Design / Google Stitch concept). **Reglas de diseño estrictas**: Totalmente plano, sin gradientes, y sin el uso de emojis en ningún componente de la interfaz para mantener la máxima formalidad académica.
 
 ---
 
-## Paleta de Colores
+## Paleta de Colores (Flat)
 
 | Nombre | Hex | Uso |
 |---|---|---|

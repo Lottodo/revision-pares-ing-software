@@ -1,48 +1,32 @@
-import { DataTypes, Model } from 'sequelize';
+import mongoose from 'mongoose';
 
-class Evaluacion extends Model {}
-
-export const initEvaluacionModel = (sequelize) => {
-  Evaluacion.init(
-    {
-      id: {
-        type: DataTypes.INTEGER.UNSIGNED,
-        autoIncrement: true,
-        primaryKey: true
-      },
-      articuloId: {
-        type: DataTypes.INTEGER.UNSIGNED,
-        allowNull: false,
-        field: 'articulo_id'
-      },
-      revisorId: {
-        type: DataTypes.INTEGER.UNSIGNED,
-        allowNull: false,
-        field: 'revisor_id'
-      },
-      veredicto: {
-        type: DataTypes.ENUM('aceptar', 'cambios_menores', 'cambios_mayores', 'rechazar'),
-        allowNull: false
-      },
-      comentarios: {
-        type: DataTypes.TEXT,
-        allowNull: false
-      },
-      fechaEvaluacion: {
-        type: DataTypes.DATE,
-        allowNull: false,
-        defaultValue: DataTypes.NOW,
-        field: 'fecha_evaluacion'
-      }
+const evaluacionSchema = new mongoose.Schema(
+  {
+    articuloId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Articulo',
+      required: true,
     },
-    {
-      sequelize,
-      modelName: 'Evaluacion',
-      tableName: 'evaluaciones'
-    }
-  );
+    revisorId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Usuario',
+      required: true,
+    },
+    veredicto: {
+      type: String,
+      enum: ['aceptar', 'cambios_menores', 'cambios_mayores', 'rechazar'],
+      required: true,
+    },
+    comentarios: {
+      type: String,
+      required: true,
+    },
+  },
+  {
+    timestamps: true,
+  }
+);
 
-  return Evaluacion;
-};
+const Evaluacion = mongoose.models.Evaluacion || mongoose.model('Evaluacion', evaluacionSchema);
 
 export default Evaluacion;

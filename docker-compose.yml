@@ -1,0 +1,31 @@
+version: '3.8'
+
+services:
+  backend:
+    build: .
+    container_name: peer_review_backend
+    ports:
+      - "3000:3000"
+    volumes:
+      - .:/usr/src/app
+      - /usr/src/app/node_modules
+    command: npm run start:backend
+    environment:
+      - PORT=3000
+      # Si dependes de MONGO_URI, este lo toma del entorno host o lo puedes definir aquí.
+      # Nota: asegurate de tener tu MONGO_URI en backend/.env o directamente aquí.
+
+  frontend:
+    build: .
+    container_name: peer_review_frontend
+    ports:
+      - "5173:5173"
+    volumes:
+      - .:/usr/src/app
+      - /usr/src/app/node_modules
+    # El flag --host es importante en Vite para que permita conexiones externas al contenedor
+    command: npm run dev -- --host 0.0.0.0
+    environment:
+      - VITE_PORT=5173
+    depends_on:
+      - backend

@@ -1,56 +1,36 @@
-import { DataTypes, Model } from 'sequelize';
+import mongoose from 'mongoose';
 
-class AsignacionRevision extends Model {}
-
-export const initAsignacionRevisionModel = (sequelize) => {
-  AsignacionRevision.init(
-    {
-      id: {
-        type: DataTypes.INTEGER.UNSIGNED,
-        autoIncrement: true,
-        primaryKey: true
-      },
-      articuloId: {
-        type: DataTypes.INTEGER.UNSIGNED,
-        allowNull: false,
-        field: 'articulo_id'
-      },
-      revisorId: {
-        type: DataTypes.INTEGER.UNSIGNED,
-        allowNull: false,
-        field: 'revisor_id'
-      },
-      estado: {
-        type: DataTypes.ENUM('pendiente', 'en_progreso', 'evaluado', 'cancelado'),
-        allowNull: false,
-        defaultValue: 'pendiente'
-      },
-      fechaAsignacion: {
-        type: DataTypes.DATE,
-        allowNull: false,
-        defaultValue: DataTypes.NOW,
-        field: 'fecha_asignacion'
-      },
-      fechaLimite: {
-        type: DataTypes.DATE,
-        allowNull: true,
-        field: 'fecha_limite'
-      }
+const asignacionRevisionSchema = new mongoose.Schema(
+  {
+    articuloId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Articulo',
+      required: true,
     },
-    {
-      sequelize,
-      modelName: 'AsignacionRevision',
-      tableName: 'asignaciones_revision',
-      indexes: [
-        {
-          unique: true,
-          fields: ['articulo_id', 'revisor_id']
-        }
-      ]
-    }
-  );
+    revisorId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Usuario',
+      required: true,
+    },
+    estado: {
+      type: String,
+      enum: ['pendiente', 'en_progreso', 'evaluado', 'cancelado'],
+      required: true,
+      default: 'pendiente',
+    },
+    fechaLimite: {
+      type: Date,
+      default: null,
+    },
+  },
+  {
+    timestamps: true,
+  }
+);
 
-  return AsignacionRevision;
-};
+// Índice compuesto para que un revisor no tenga el mismo artículo dos veces
+asignacionRevisionSchema.index({ articuloId: 1, revisorId: 1 }, { unique: true });
+
+const AsignacionRevision = mongoose.models.AsignacionRevision || mongoose.model('AsignacionRevision', asignacionRevisionSchema);
 
 export default AsignacionRevision;

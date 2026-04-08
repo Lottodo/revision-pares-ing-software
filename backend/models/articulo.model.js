@@ -1,60 +1,44 @@
-import { DataTypes, Model } from 'sequelize';
+import mongoose from 'mongoose';
 
-class Articulo extends Model {}
-
-export const initArticuloModel = (sequelize) => {
-  Articulo.init(
-    {
-      id: {
-        type: DataTypes.INTEGER.UNSIGNED,
-        autoIncrement: true,
-        primaryKey: true
-      },
-      titulo: {
-        type: DataTypes.STRING(200),
-        allowNull: false
-      },
-      resumen: {
-        type: DataTypes.TEXT,
-        allowNull: false
-      },
-      documentoUrl: {
-        type: DataTypes.STRING(255),
-        allowNull: false,
-        field: 'documento_url'
-      },
-      estado: {
-        type: DataTypes.ENUM(
-          'recibido',
-          'en_revision',
-          'cambios_menores',
-          'cambios_mayores',
-          'aceptado',
-          'rechazado'
-        ),
-        allowNull: false,
-        defaultValue: 'recibido'
-      },
-      fechaEnvio: {
-        type: DataTypes.DATE,
-        allowNull: false,
-        defaultValue: DataTypes.NOW,
-        field: 'fecha_envio'
-      },
-      autorId: {
-        type: DataTypes.INTEGER.UNSIGNED,
-        allowNull: false,
-        field: 'autor_id'
-      }
+const articuloSchema = new mongoose.Schema(
+  {
+    titulo: {
+      type: String,
+      required: true,
+      maxlength: 200,
     },
-    {
-      sequelize,
-      modelName: 'Articulo',
-      tableName: 'articulos'
-    }
-  );
+    resumen: {
+      type: String,
+      required: true,
+    },
+    documentoUrl: {
+      type: String,
+      required: true,
+    },
+    estado: {
+      type: String,
+      enum: [
+        'recibido',
+        'en_revision',
+        'cambios_menores',
+        'cambios_mayores',
+        'aceptado',
+        'rechazado',
+      ],
+      required: true,
+      default: 'recibido',
+    },
+    autorId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Usuario',
+      required: true,
+    },
+  },
+  {
+    timestamps: true,
+  }
+);
 
-  return Articulo;
-};
+const Articulo = mongoose.models.Articulo || mongoose.model('Articulo', articuloSchema);
 
 export default Articulo;

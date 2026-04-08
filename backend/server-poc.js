@@ -8,9 +8,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import dotenv from 'dotenv';
-import { Op } from 'sequelize';
-import { testDatabaseConnection } from './config/database.js';
-import { initModels, Usuario, Articulo, AsignacionRevision, Evaluacion } from './models/index.js';
+import { connectDB, Usuario, Articulo, AsignacionRevision, Evaluacion } from './models/index.js';
 import authRoutes from './routes/auth.js';
 import { verificarToken } from './middleware/auth.js';
 
@@ -35,15 +33,17 @@ const upload = multer({ storage });
 
 const app = express();
 app.use(express.json());
-app.use(cors()); // Permite que el frontend hable con el backend
+app.use(cors());
 app.use('/uploads', express.static(uploadsDir));
 
 // Cargar variables de entorno
 const __envPath = path.resolve(__dirname, '.env');
 dotenv.config({ path: __envPath });
 
-const SECRET_KEY = process.env.JWT_SECRET || 'mi_clave_super_secreta_sprint1';
+// ─── Montar rutas de autenticación ───────────────────
+app.use('/api/auth', authRoutes);
 
+// Helper objects UI to DB
 const estadoArticuloDbToUi = {
     recibido: 'Recibido',
     en_revision: 'En Revisión',
@@ -67,54 +67,19 @@ const veredictoUiToDb = {
     'Rechazar': 'rechazar'
 };
 
-// ─── Montar rutas de autenticación nuevas ───────────────────
-app.use('/api/auth', authRoutes);
-
-// 1. Endpoint Público: Iniciar Sesión (DEPRECATED — usar /api/auth/login)
-// Mantenido por retrocompatibilidad. Será removido en Sprint 3.
-app.post('/api/login', async (req, res) => {
-    try {
-        const { username, password } = req.body;
-        const usuario = await Usuario.findOne({ where: { username, activo: true } });
-
-        if (!usuario) {
-            return res.status(401).json({ error: "Credenciales inválidas" });
-        }
-
-        const passwordValido = await bcrypt.compare(password, usuario.passwordHash);
-        if (!passwordValido) {
-            return res.status(401).json({ error: "Credenciales inválidas" });
-        }
-
-        const token = jwt.sign(
-            { id: usuario.id, username: usuario.username, role: usuario.rol },
-            SECRET_KEY,
-            { expiresIn: '24h' }
-        );
-
-        return res.json({ mensaje: "Login exitoso", token, role: usuario.rol });
-    } catch (error) {
-        console.error('Error en login:', error);
-        return res.status(500).json({ error: 'Error interno del servidor.' });
-    }
-});
-
-// Middleware verificarToken importado de ./middleware/auth.js
 
 // 2. Endpoint: Mis Artículos (Autor)
 app.get('/api/mis-articulos', verificarToken, async (req, res) => {
     if (req.user.role !== 'autor') return res.status(403).json({ error: "Acceso solo para autores" });
 
     try {
-        const articulos = await Articulo.findAll({
-            where: { autorId: req.user.id },
-            order: [['fechaEnvio', 'DESC']]
-        });
+        const articulos = await Articulo.find({ autorId: req.user.id })
+                                        .sort({ createdAt: -1 });
 
         const resultado = articulos.map((articulo) => ({
-            id: articulo.id,
+            id: articulo._id,
             titulo: articulo.titulo,
-            fecha: new Date(articulo.fechaEnvio).toISOString().split('T')[0],
+            fecha: new Date(articulo.createdAt).toISOString().split('T')[0],
             estado: estadoArticuloDbToUi[articulo.estado] || articulo.estado
         }));
 
@@ -137,17 +102,19 @@ app.post('/api/articulos', verificarToken, upload.single('documento'), async (re
             return res.status(400).json({ error: 'Faltan datos requeridos o archivo PDF.' });
         }
 
-        const nuevoArticulo = await Articulo.create({
+        const nuevoArticulo = new Articulo({
             titulo: String(titulo).trim(),
             resumen: String(resumen).trim(),
             documentoUrl: `/uploads/${archivo.filename}`,
             estado: 'recibido',
             autorId: req.user.id
         });
+        
+        await nuevoArticulo.save();
 
         return res.status(201).json({
             mensaje: 'Articulo creado con exito.',
-            articuloId: nuevoArticulo.id
+            articuloId: nuevoArticulo._id
         });
     } catch (error) {
         console.error('Error al crear articulo:', error);
@@ -157,20 +124,17 @@ app.post('/api/articulos', verificarToken, upload.single('documento'), async (re
 
 // 4. Endpoint (TAREA 2317): Acceder a Artículos Asignados (Revisor)
 app.get('/api/articulos-asignados', verificarToken, async (req, res) => {
-    // Validamos que sea un revisor
     if (req.user.role !== 'revisor') return res.status(403).json({ error: "Acceso solo para revisores" });
 
     try {
-        const asignaciones = await AsignacionRevision.findAll({
-            where: { revisorId: req.user.id },
-            include: [{ model: Articulo, as: 'articulo', attributes: ['id', 'titulo'] }],
-            order: [['fechaAsignacion', 'DESC']]
-        });
+        const asignaciones = await AsignacionRevision.find({ revisorId: req.user.id })
+                                                     .populate('articuloId')
+                                                     .sort({ createdAt: -1 });
 
         const resultado = asignaciones.map((asignacion) => ({
-            id: asignacion.articulo?.id,
-            titulo: asignacion.articulo?.titulo,
-            fechaAsignacion: new Date(asignacion.fechaAsignacion).toISOString().split('T')[0],
+            id: asignacion.articuloId?._id,
+            titulo: asignacion.articuloId?.titulo,
+            fechaAsignacion: new Date(asignacion.createdAt).toISOString().split('T')[0],
             estado: estadoAsignacionDbToUi[asignacion.estado] || asignacion.estado
         })).filter((a) => a.id);
 
@@ -178,6 +142,122 @@ app.get('/api/articulos-asignados', verificarToken, async (req, res) => {
     } catch (error) {
         console.error('Error obteniendo articulos asignados:', error);
         return res.status(500).json({ error: 'Error interno del servidor.' });
+    }
+});
+
+// N1. Endpoint: Ver TODOS los artículos (Editor)
+app.get('/api/articulos', verificarToken, async (req, res) => {
+    if (req.user.role !== 'editor') return res.status(403).json({ error: "Acceso solo para editores" });
+
+    try {
+        const articulos = await Articulo.find().sort({ createdAt: -1 });
+        
+        // Populate revisores for each article to show in the UI
+        const resultado = await Promise.all(articulos.map(async (art) => {
+            const asignaciones = await AsignacionRevision.find({ articuloId: art._id, estado: { $ne: 'cancelado' } });
+            const revisoresData = asignaciones.map(a => ({
+                id: a.revisorId,
+                revisor: a.revisorId,
+                completado: a.estado === 'evaluado'
+            }));
+            
+            return {
+                _id: art._id,
+                titulo: art.titulo,
+                estado: estadoArticuloDbToUi[art.estado] || art.estado,
+                area: 'General',
+                revisores: revisoresData
+            };
+        }));
+
+        return res.json(resultado);
+    } catch (error) {
+        console.error('Error obteniendo panel de editor:', error);
+        return res.status(500).json({ error: 'Error interno.' });
+    }
+});
+
+// N2. Endpoint: Obtener lista de Revisores disponibles (Editor)
+app.get('/api/revisores', verificarToken, async (req, res) => {
+    if (req.user.role !== 'editor') return res.status(403).json({ error: "Acceso solo para editores" });
+
+    try {
+        const revisores = await Usuario.find({ rol: 'revisor', activo: true }).select('username _id');
+        
+        const resultado = await Promise.all(revisores.map(async (rev) => {
+            const cargaAgregada = await AsignacionRevision.countDocuments({ revisorId: rev._id, estado: { $in: ['pendiente', 'en_progreso'] } });
+            return {
+                id: rev._id,
+                nombre: rev.username,
+                carga: cargaAgregada
+            };
+        }));
+
+        return res.json(resultado);
+    } catch (error) {
+        console.error('Error obteniendo panel de revisores:', error);
+        return res.status(500).json({ error: 'Error interno.' });
+    }
+});
+
+// N3. Endpoint: Asignar un revisor a un artículo (Editor)
+app.post('/api/asignaciones', verificarToken, async (req, res) => {
+    if (req.user.role !== 'editor') return res.status(403).json({ error: "Acceso solo para editores" });
+
+    try {
+        const { articuloId, revisorId } = req.body;
+        if (!articuloId || !revisorId) return res.status(400).json({ error: 'Data invalida' });
+
+        const existe = await AsignacionRevision.findOne({ articuloId, revisorId, estado: { $ne: 'cancelado' } });
+        if (existe) return res.status(400).json({ error: 'Este revisor ya está asignado al artículo.' });
+
+        const asignacion = new AsignacionRevision({ articuloId, revisorId, estado: 'pendiente' });
+        await asignacion.save();
+
+        // Si tiene al menos 2 revisores, pasar a en_revision
+        const cuentaRevisores = await AsignacionRevision.countDocuments({ articuloId, estado: { $ne: 'cancelado'} });
+        if (cuentaRevisores >= 2) {
+            await Articulo.findByIdAndUpdate(articuloId, { estado: 'en_revision' });
+        }
+
+        return res.status(201).json({ mensaje: 'Revisor asignado con éxito.' });
+    } catch (error) {
+        console.error('Error asignando revisor:', error);
+        return res.status(500).json({ error: 'Error interno.' });
+    }
+});
+
+// N4. Endpoint: Quitar Asignacion (Editor)
+app.delete('/api/asignaciones', verificarToken, async (req, res) => {
+    if (req.user.role !== 'editor') return res.status(403).json({ error: "Acceso solo para editores" });
+
+    try {
+        const { articuloId, revisorId } = req.body;
+        if (!articuloId || !revisorId) return res.status(400).json({ error: 'Data invalida' });
+
+        await AsignacionRevision.findOneAndUpdate({ articuloId, revisorId, estado: { $ne: 'evaluado' } }, { estado: 'cancelado' });
+
+        return res.status(200).json({ mensaje: 'Asignación removida.' });
+    } catch (error) {
+        return res.status(500).json({ error: 'Error al quitar revisión.' });
+    }
+});
+
+// N5. Endpoint: Decidir status final articulo (Editor)
+app.put('/api/articulos/:id/estado', verificarToken, async (req, res) => {
+    if (req.user.role !== 'editor') return res.status(403).json({ error: "Acceso solo para editores" });
+
+    try {
+        const { id } = req.params;
+        const { estado } = req.body; // 'Aceptado' o 'Rechazado' -> lo pasamos a db form
+        let estadoDb = 'recibido';
+        if (estado === 'Aceptado') estadoDb = 'aceptado';
+        if (estado === 'Rechazado') estadoDb = 'rechazado';
+
+        await Articulo.findByIdAndUpdate(id, { estado: estadoDb });
+        return res.status(200).json({ mensaje: 'Decisión registrada correctamente.' });
+    } catch (error) {
+        return res.status(500).json({ error: 'Error interno de decision.' });
     }
 });
 
@@ -193,25 +273,24 @@ app.post('/api/evaluar', verificarToken, async (req, res) => {
         }
 
         const asignacion = await AsignacionRevision.findOne({
-            where: {
-                articuloId,
-                revisorId: req.user.id,
-                estado: { [Op.ne]: 'cancelado' }
-            }
+            articuloId,
+            revisorId: req.user.id,
+            estado: { $ne: 'cancelado' }
         });
 
         if (!asignacion) {
-            return res.status(403).json({ error: 'El artículo no está asignado a este revisor.' });
+            return res.status(403).json({ error: 'El artículo no está asignado a este revisor o fue cancelado.' });
         }
 
-        await Evaluacion.create({
+        const evaluacion = new Evaluacion({
             articuloId,
             revisorId: req.user.id,
             veredicto: veredictoDb,
             comentarios
         });
-
-        await asignacion.update({ estado: 'evaluado' });
+        
+        await evaluacion.save();
+        await AsignacionRevision.findByIdAndUpdate(asignacion._id, { estado: 'evaluado' });
 
         return res.json({ mensaje: "Evaluación enviada con éxito. El editor ha sido notificado." });
     } catch (error) {
@@ -222,9 +301,8 @@ app.post('/api/evaluar', verificarToken, async (req, res) => {
 
 const iniciarServidor = async () => {
     try {
-        initModels();
-        await testDatabaseConnection();
-        app.listen(3000, () => console.log('Servidor backend corriendo en http://localhost:3000'));
+        await connectDB();
+        app.listen(3000, () => console.log('[Servidor] Backend corriendo en http://localhost:3000'));
     } catch (error) {
         console.error('No se pudo iniciar el backend:', error);
         process.exit(1);
