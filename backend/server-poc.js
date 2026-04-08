@@ -7,9 +7,11 @@ import multer from 'multer';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import dotenv from 'dotenv';
 import { Op } from 'sequelize';
 import { testDatabaseConnection } from './config/database.js';
 import { initModels, Usuario, Articulo, AsignacionRevision, Evaluacion } from './models/index.js';
+import authRoutes from './routes/auth.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -35,7 +37,11 @@ app.use(express.json());
 app.use(cors()); // Permite que el frontend hable con el backend
 app.use('/uploads', express.static(uploadsDir));
 
-const SECRET_KEY = "mi_clave_super_secreta_sprint1";
+// Cargar variables de entorno
+const __envPath = path.resolve(__dirname, '.env');
+dotenv.config({ path: __envPath });
+
+const SECRET_KEY = process.env.JWT_SECRET || 'mi_clave_super_secreta_sprint1';
 
 const estadoArticuloDbToUi = {
     recibido: 'Recibido',
@@ -60,7 +66,11 @@ const veredictoUiToDb = {
     'Rechazar': 'rechazar'
 };
 
-// 1. Endpoint Público: Iniciar Sesión (Soporta Autor y Revisor)
+// ─── Montar rutas de autenticación nuevas ───────────────────
+app.use('/api/auth', authRoutes);
+
+// 1. Endpoint Público: Iniciar Sesión (DEPRECATED — usar /api/auth/login)
+// Mantenido por retrocompatibilidad. Será removido en Sprint 3.
 app.post('/api/login', async (req, res) => {
     try {
         const { username, password } = req.body;
