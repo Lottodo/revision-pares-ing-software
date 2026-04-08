@@ -12,6 +12,7 @@ import { Op } from 'sequelize';
 import { testDatabaseConnection } from './config/database.js';
 import { initModels, Usuario, Articulo, AsignacionRevision, Evaluacion } from './models/index.js';
 import authRoutes from './routes/auth.js';
+import { verificarToken } from './middleware/auth.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -98,33 +99,7 @@ app.post('/api/login', async (req, res) => {
     }
 });
 
-// Middleware para proteger rutas
-const verificarToken = (req, res, next) => {
-    const authHeader = req.headers['authorization'];
-    console.log('Authorization header:', authHeader);
-    
-    const token = authHeader?.startsWith('Bearer ')
-        ? authHeader.slice(7)
-        : authHeader;
-
-    if (!token) {
-        console.log('No token encontrado');
-        return res.status(403).json({ error: "No hay token, acceso denegado." });
-    }
-
-    console.log('Token a verificar:', token);
-    console.log('SECRET_KEY usado:', SECRET_KEY);
-    
-    jwt.verify(token, SECRET_KEY, (err, decoded) => {
-        if (err) {
-            console.error('Error al verificar token:', err.message);
-            return res.status(401).json({ error: "Token inválido." });
-        }
-        console.log('Token verificado correctamente. Usuario:', decoded);
-        req.user = decoded;
-        next();
-    });
-};
+// Middleware verificarToken importado de ./middleware/auth.js
 
 // 2. Endpoint: Mis Artículos (Autor)
 app.get('/api/mis-articulos', verificarToken, async (req, res) => {
