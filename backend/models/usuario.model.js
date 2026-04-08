@@ -1,55 +1,42 @@
-import { DataTypes, Model } from 'sequelize';
+import mongoose from 'mongoose';
 
-class Usuario extends Model {}
-
-export const initUsuarioModel = (sequelize) => {
-  Usuario.init(
-    {
-      id: {
-        type: DataTypes.INTEGER.UNSIGNED,
-        autoIncrement: true,
-        primaryKey: true
-      },
-      username: {
-        type: DataTypes.STRING(50),
-        allowNull: false,
-        unique: true,
-        validate: {
-          len: [3, 50]
-        }
-      },
-      email: {
-        type: DataTypes.STRING(120),
-        allowNull: false,
-        unique: true,
-        validate: {
-          isEmail: true
-        }
-      },
-      passwordHash: {
-        type: DataTypes.STRING(255),
-        allowNull: false,
-        field: 'password_hash'
-      },
-      rol: {
-        type: DataTypes.ENUM('autor', 'revisor', 'editor'),
-        allowNull: false,
-        defaultValue: 'autor'
-      },
-      activo: {
-        type: DataTypes.BOOLEAN,
-        allowNull: false,
-        defaultValue: true
-      }
+const usuarioSchema = new mongoose.Schema(
+  {
+    username: {
+      type: String,
+      required: true,
+      unique: true,
+      minlength: 3,
+      maxlength: 50,
     },
-    {
-      sequelize,
-      modelName: 'Usuario',
-      tableName: 'usuarios'
-    }
-  );
+    email: {
+      type: String,
+      required: true,
+      unique: true,
+      match: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
+    },
+    passwordHash: {
+      type: String,
+      required: true,
+    },
+    rol: {
+      type: String,
+      enum: ['autor', 'revisor', 'editor'],
+      required: true,
+      default: 'autor',
+    },
+    activo: {
+      type: Boolean,
+      required: true,
+      default: true,
+    },
+  },
+  {
+    timestamps: true, // creates createdAt and updatedAt
+  }
+);
 
-  return Usuario;
-};
+// Asegurarse de que no haya un modelo preexistente cargado (útil en dev servers)
+const Usuario = mongoose.models.Usuario || mongoose.model('Usuario', usuarioSchema);
 
 export default Usuario;
