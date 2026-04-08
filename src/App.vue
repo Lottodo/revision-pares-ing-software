@@ -1,20 +1,37 @@
 <template>
   <div id="app-container">
-    <header class="menu-principal">
+    <!-- El nav solo se muestra si hay sesion activa -->
+    <header v-if="isAuthenticated" class="menu-principal">
       <h1>Sistema PeerReview</h1>
       <nav>
         <router-link to="/subir-articulo" class="nav-link">📤 Subir Artículo</router-link>
         <router-link to="/estado-articulos" class="nav-link">📊 Ver Estado</router-link>
         <router-link to="/articulos-asignados" class="nav-link">📋 Tareas Revisor</router-link>
         <router-link to="/editor" class="nav-link">🗂️ Panel Editor</router-link>
+        <button class="nav-link btn-logout" @click="handleLogout">🚪 Salir</button>
       </nav>
     </header>
 
-    <main class="contenido-principal">
-      <router-view></router-view> 
+    <main :class="{ 'contenido-principal': isAuthenticated }">
+      <router-view></router-view>
     </main>
   </div>
 </template>
+
+<script setup>
+import { computed } from 'vue'
+import { useRouter } from 'vue-router'
+
+const router = useRouter()
+
+const isAuthenticated = computed(() => !!localStorage.getItem('token'))
+
+const handleLogout = () => {
+  localStorage.removeItem('token')
+  localStorage.removeItem('user')
+  router.push('/login')
+}
+</script>
 
 <style>
 body {
@@ -47,6 +64,18 @@ body {
 }
 .nav-link:hover {
   text-decoration: underline;
+}
+.btn-logout {
+  background: none;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: inherit;
+  transition: background 0.2s;
+}
+.btn-logout:hover {
+  background: rgba(255, 255, 255, 0.1);
+  text-decoration: none;
 }
 .contenido-principal {
   padding: 2rem;
