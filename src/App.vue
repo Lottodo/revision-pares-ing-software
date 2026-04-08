@@ -4,11 +4,11 @@
     <header v-if="isAuthenticated" class="menu-principal">
       <h1>Sistema PeerReview</h1>
       <nav>
-        <router-link to="/subir-articulo" class="nav-link">📤 Subir Artículo</router-link>
-        <router-link to="/estado-articulos" class="nav-link">📊 Ver Estado</router-link>
-        <router-link to="/articulos-asignados" class="nav-link">📋 Tareas Revisor</router-link>
-        <router-link to="/editor" class="nav-link">🗂️ Panel Editor</router-link>
-        <button class="nav-link btn-logout" @click="handleLogout">🚪 Salir</button>
+        <router-link to="/subir-articulo" class="nav-link">Subir Artículo</router-link>
+        <router-link to="/estado-articulos" class="nav-link">Ver Estado</router-link>
+        <router-link to="/articulos-asignados" class="nav-link">Tareas Revisor</router-link>
+        <router-link to="/editor" class="nav-link">Panel Editor</router-link>
+        <button class="nav-link btn-logout" @click="handleLogout">Salir</button>
       </nav>
     </header>
 

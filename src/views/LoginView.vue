@@ -3,7 +3,6 @@
     <div class="login-card">
       <!-- Header con branding -->
       <div class="login-header">
-        <div class="logo-icon">🎓</div>
         <h1>PeerReview</h1>
         <p class="subtitle">Sistema de Revisión por Pares — UABC FIM</p>
       </div>
@@ -14,7 +13,6 @@
         <div class="form-group" :class="{ 'has-error': errors.username }">
           <label for="login-username">Usuario</label>
           <div class="input-wrapper">
-            <span class="input-icon">👤</span>
             <input
               id="login-username"
               v-model.trim="form.username"
@@ -31,7 +29,6 @@
         <div class="form-group" :class="{ 'has-error': errors.password }">
           <label for="login-password">Contraseña</label>
           <div class="input-wrapper">
-            <span class="input-icon">🔒</span>
             <input
               id="login-password"
               v-model="form.password"
@@ -46,7 +43,7 @@
               @click="showPassword = !showPassword"
               tabindex="-1"
             >
-              {{ showPassword ? '🙈' : '👁️' }}
+              {{ showPassword ? 'Ocultar' : 'Mostrar' }}
             </button>
           </div>
           <span v-if="errors.password" class="error-text">{{ errors.password }}</span>
@@ -54,7 +51,6 @@
 
         <!-- Error del API -->
         <div v-if="apiError" class="api-error" id="login-api-error">
-          <span class="error-icon">⚠️</span>
           {{ apiError }}
         </div>
 
@@ -177,7 +173,7 @@ const handleLogin = async () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #1a3a2a 0%, #2c5f4a 50%, #1a3a2a 100%);
+  background: #f4f7f6; /* Flat background base instead of gradient */
   padding: 1rem;
 }
 
@@ -191,15 +187,10 @@ const handleLogin = async () => {
 }
 
 .login-header {
-  background: linear-gradient(135deg, #1a5c3a, #2d8a5e);
+  background: #1a5c3a; /* Flat color */
   color: #ffffff;
   text-align: center;
   padding: 2rem 2rem 1.5rem;
-}
-
-.logo-icon {
-  font-size: 2.5rem;
-  margin-bottom: 0.5rem;
 }
 
 .login-header h1 {
@@ -237,16 +228,9 @@ const handleLogin = async () => {
   align-items: center;
 }
 
-.input-icon {
-  position: absolute;
-  left: 12px;
-  font-size: 1rem;
-  pointer-events: none;
-}
-
 .input-wrapper input {
   width: 100%;
-  padding: 0.75rem 2.5rem 0.75rem 2.5rem;
+  padding: 0.75rem 2.5rem 0.75rem 1rem; /* Adjusted left padding since icon is gone */
   border: 2px solid #e5e7eb;
   border-radius: 10px;
   font-size: 0.95rem;
@@ -272,7 +256,8 @@ const handleLogin = async () => {
   background: none;
   border: none;
   cursor: pointer;
-  font-size: 1rem;
+  font-size: 0.85rem;
+  font-weight: 500;
   padding: 4px;
 }
 
@@ -296,14 +281,10 @@ const handleLogin = async () => {
   gap: 0.5rem;
 }
 
-.error-icon {
-  font-size: 1rem;
-}
-
 .btn-login {
   width: 100%;
   padding: 0.85rem;
-  background: linear-gradient(135deg, #1a5c3a, #2d8a5e);
+  background: #1a5c3a; /* Flat color */
   color: #ffffff;
   border: none;
   border-radius: 10px;
