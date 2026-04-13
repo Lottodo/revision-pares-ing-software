@@ -1,39 +1,53 @@
-# Sistema de Revisión por Pares Asistido por IA para Congresos y Revistas Científicas (PWA-Native)
+# README - Plataforma de Peer Review "Pro Max"
 
-## Visión General
+## Descripción General
+Plataforma institucional con arquitectura JWT + Mongoose + Vue3 + Vuetify, estructurada para manejar flujos de revisión de a pares ciegos (Doble Ciego) con estrictos niveles de autorización.
 
-<p>Un sistema inteligente y progresivo que gestiona todo el flujo de trabajo de revisión por pares, diseñado como una <strong>Progressive Web App (PWA)</strong> para ofrecer una experiencia nativa en todos los dispositivos, con capacidades offline-first, notificaciones push, y sincronización en segundo plano.</p> <p>El sistema utiliza LLMs para asistir en detección de conflictos de interés, emparejamiento automático de revisores, análisis de calidad de revisiones, y detección de plagio, permitiendo a editores y revisores trabajar desde cualquier lugar, incluso sin conexión a internet.</p>
+---
 
-### Equipo de trabajo
+## 🚀 Cómo iniciar la aplicación
 
-- **Product Owner (PO):** `José Carlos Ponce Odohui`
-- **Scrum Master (SM):** `Alexandra Martínez Zavala`
-- **Dev Team:**
-	- `Alejandro Yael Armenta Carrera`
-	- `Astrid Jiménez Barrera`
-	- `Jayson Chico Vargas`
-	- `Jeffrey Jaeho Yoon Guadiana`
+Puedes levantar la plataforma de dos maneras distintas: de forma nativa (manual) si tienes Node.js, o contenerizada mediante Docker.
+
+### 1. Forma Manual (Modo Desarrollo)
+Asegúrate de contar con Node.js v20+ instalado.
+
+1. **Instalación Inicial:**
+   En la raíz del proyecto, abre una terminal y corre:
+   ```bash
+   npm install
+   ```
+
+2. **Levantar el Backend:**
+   Abre una terminal en la raíz y ejecuta el servidor de la API:
+   ```bash
+   npm run start:backend
+   ```
+   *(El servidor escuchará en el puerto `3000`)*
+
+3. **Levantar el Frontend:**
+   Abre **otra** terminal paralela en la raíz y ejecuta Vite:
+   ```bash
+   npm run dev
+   ```
+   *(La interfaz levantará en `http://localhost:5173`. Todo el tráfico de API se reenviará automáticamente por el proxy configurado en `vite.config.js` al puerto 3000).*
 
 
-## Configuración de IDE recomendado
+### 2. Forma con Docker (Recomendada)
+Si tienes **Docker Desktop** (o Docker Engine + Docker Compose) instalado, levantar toda la arquitectura es completamente automático.
 
-[VS Code](https://code.visualstudio.com/) + [Vue (Official)](https://marketplace.visualstudio.com/items?itemName=Vue.volar) (sin Vetur).
+1. Abre tu terminal en la raíz de este proyecto (donde vive `docker-compose.yml`).
+2. Ejecuta:
+   ```bash
+   docker-compose up --build -d
+   ```
+3. Docker orquestará los dos contenedores en paralelo (`peer_review_frontend` y `peer_review_backend`). 
+4. Accede a la plataforma ingresando a `http://localhost:5173`. Las llamadas internas hacia el puerto 3000 estarán expuestas correctamente.
+*(Para detener el entorno local: `docker-compose down`).*
 
-Es necesario tener instalado [Node.js](https://nodejs.org/es/download) para poder desarrollar y lanzar el proyecto.
+---
 
-## Cómo lanzar:
-
-Primero debes instalar las dependencias, utilizando este comando estando en la raíz del proyecto:
-```sh
-npm install
-```
-Una vez instaladas, en la misma raíz del proyecto, lanza el siguiente comando para correr el servidor en modo de desarrollo:
-```sh
-npm run dev
-```
-
-Para correr en modo Producción lanza el siguiente comando:
-```sh
-npm run build
-```
-
+> **Tip de Acceso Rápido:** No es necesario crear cuentas. Contamos con una base de datos semilla viva en MongoDB Atlas con los siguientes usuarios (contraseña `1234` para todos):
+> - `autor1` (Sube artículos)
+> - `editor1` (Asigna artículos y decide su publicación)
+> - `revisor1` (Lee y remite dictámenes)

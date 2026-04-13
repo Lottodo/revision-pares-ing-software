@@ -2,77 +2,311 @@
 import express from 'express';
 import jwt from 'jsonwebtoken';
 import cors from 'cors';
+import bcrypt from 'bcryptjs';
+import multer from 'multer';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import dotenv from 'dotenv';
+import { connectDB, Usuario, Articulo, AsignacionRevision, Evaluacion } from './models/index.js';
+import authRoutes from './routes/auth.js';
+import { verificarToken } from './middleware/auth.js';
 
-const app = express();
-app.use(express.json());
-app.use(cors()); // Permite que el frontend hable con el backend
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const uploadsDir = path.join(__dirname, 'uploads');
 
-const SECRET_KEY = "mi_clave_super_secreta_sprint1";
+if (!fs.existsSync(uploadsDir)) {
+    fs.mkdirSync(uploadsDir, { recursive: true });
+}
 
-// 1. Endpoint Público: Iniciar Sesión (Soporta Autor y Revisor)
-app.post('/api/login', (req, res) => {
-    const { username, password } = req.body;
-
-    if (username === "autor1" && password === "1234") {
-        const token = jwt.sign({ id: 1, username: username, role: "autor" }, SECRET_KEY, { expiresIn: '1h' });
-        res.json({ mensaje: "Login exitoso", token: token, role: "autor" });
-    } 
-    // NUEVO: Agregamos un usuario revisor de prueba
-    else if (username === "revisor1" && password === "1234") {
-        const token = jwt.sign({ id: 2, username: username, role: "revisor" }, SECRET_KEY, { expiresIn: '1h' });
-        res.json({ mensaje: "Login exitoso", token: token, role: "revisor" });
-    } 
-    else {
-        res.status(401).json({ error: "Credenciales inválidas" });
+const storage = multer.diskStorage({
+    destination: uploadsDir,
+    filename: (req, file, cb) => {
+        const timestamp = Date.now();
+        const cleanName = file.originalname.replace(/\s+/g, '_');
+        cb(null, `${timestamp}-${cleanName}`);
     }
 });
 
-// Middleware para proteger rutas
-const verificarToken = (req, res, next) => {
-    const token = req.headers['authorization'];
-    if (!token) return res.status(403).json({ error: "No hay token, acceso denegado." });
+const upload = multer({ storage });
 
-    jwt.verify(token, SECRET_KEY, (err, decoded) => {
-        if (err) return res.status(401).json({ error: "Token inválido." });
-        req.user = decoded;
-        next();
-    });
+const app = express();
+app.use(express.json());
+app.use(cors());
+app.use('/uploads', express.static(uploadsDir));
+
+// Cargar variables de entorno
+const __envPath = path.resolve(__dirname, '.env');
+dotenv.config({ path: __envPath });
+
+// ─── Montar rutas de autenticación ───────────────────
+app.use('/api/auth', authRoutes);
+
+// Helper objects UI to DB
+const estadoArticuloDbToUi = {
+    recibido: 'Recibido',
+    en_revision: 'En Revisión',
+    cambios_menores: 'Cambios Menores',
+    cambios_mayores: 'Cambios Mayores',
+    aceptado: 'Aceptado',
+    rechazado: 'Rechazado'
 };
 
+const estadoAsignacionDbToUi = {
+    pendiente: 'Pendiente',
+    en_progreso: 'En Progreso',
+    evaluado: 'Evaluado',
+    cancelado: 'Cancelado'
+};
+
+const veredictoUiToDb = {
+    'Aceptar': 'aceptar',
+    'Cambios Menores': 'cambios_menores',
+    'Cambios Mayores': 'cambios_mayores',
+    'Rechazar': 'rechazar'
+};
+
+
 // 2. Endpoint: Mis Artículos (Autor)
-app.get('/api/mis-articulos', verificarToken, (req, res) => {
+app.get('/api/mis-articulos', verificarToken, async (req, res) => {
     if (req.user.role !== 'autor') return res.status(403).json({ error: "Acceso solo para autores" });
-    res.json([
-        { id: 101, titulo: "El impacto de la IA en la educación moderna", fecha: "2026-03-20", estado: "En Revisión" },
-        { id: 98, titulo: "Nuevas metodologías ágiles en 2026", fecha: "2026-03-15", estado: "Aceptado" }
-    ]);
+
+    try {
+        const articulos = await Articulo.find({ autorId: req.user.id })
+                                        .sort({ createdAt: -1 });
+
+        const resultado = articulos.map((articulo) => ({
+            id: articulo._id,
+            titulo: articulo.titulo,
+            fecha: new Date(articulo.createdAt).toISOString().split('T')[0],
+            estado: estadoArticuloDbToUi[articulo.estado] || articulo.estado
+        }));
+
+        return res.json(resultado);
+    } catch (error) {
+        console.error('Error obteniendo articulos del autor:', error);
+        return res.status(500).json({ error: 'Error interno del servidor.' });
+    }
 });
 
-// 3. Endpoint (TAREA 2317): Acceder a Artículos Asignados (Revisor)
-app.get('/api/articulos-asignados', verificarToken, (req, res) => {
-    // Validamos que sea un revisor
+// 3. Endpoint: Subir Artículo (Autor)
+app.post('/api/articulos', verificarToken, upload.single('documento'), async (req, res) => {
+    if (req.user.role !== 'autor') return res.status(403).json({ error: "Acceso solo para autores" });
+
+    try {
+        const { titulo, resumen } = req.body;
+        const archivo = req.file;
+
+        if (!titulo || !resumen || !archivo) {
+            return res.status(400).json({ error: 'Faltan datos requeridos o archivo PDF.' });
+        }
+
+        const nuevoArticulo = new Articulo({
+            titulo: String(titulo).trim(),
+            resumen: String(resumen).trim(),
+            documentoUrl: `/uploads/${archivo.filename}`,
+            estado: 'recibido',
+            autorId: req.user.id
+        });
+        
+        await nuevoArticulo.save();
+
+        return res.status(201).json({
+            mensaje: 'Articulo creado con exito.',
+            articuloId: nuevoArticulo._id
+        });
+    } catch (error) {
+        console.error('Error al crear articulo:', error);
+        return res.status(500).json({ error: 'Error interno del servidor.' });
+    }
+});
+
+// 4. Endpoint (TAREA 2317): Acceder a Artículos Asignados (Revisor)
+app.get('/api/articulos-asignados', verificarToken, async (req, res) => {
     if (req.user.role !== 'revisor') return res.status(403).json({ error: "Acceso solo para revisores" });
-    
-    res.json([
-        { id: 105, titulo: "Optimización de bases de datos NoSQL", fechaAsignacion: "2026-04-01", estado: "Pendiente" },
-        { id: 110, titulo: "Seguridad en APIs RESTful", fechaAsignacion: "2026-04-02", estado: "Pendiente" }
-    ]);
+
+    try {
+        const asignaciones = await AsignacionRevision.find({ revisorId: req.user.id })
+                                                     .populate('articuloId')
+                                                     .sort({ createdAt: -1 });
+
+        const resultado = asignaciones.map((asignacion) => ({
+            id: asignacion.articuloId?._id,
+            titulo: asignacion.articuloId?.titulo,
+            fechaAsignacion: new Date(asignacion.createdAt).toISOString().split('T')[0],
+            estado: estadoAsignacionDbToUi[asignacion.estado] || asignacion.estado
+        })).filter((a) => a.id);
+
+        return res.json(resultado);
+    } catch (error) {
+        console.error('Error obteniendo articulos asignados:', error);
+        return res.status(500).json({ error: 'Error interno del servidor.' });
+    }
 });
 
-// 4. Endpoint (TAREA 2313): Enviar Evaluación de Artículo (Revisor)
-app.post('/api/evaluar', verificarToken, (req, res) => {
+// N1. Endpoint: Ver TODOS los artículos (Editor)
+app.get('/api/articulos', verificarToken, async (req, res) => {
+    if (req.user.role !== 'editor') return res.status(403).json({ error: "Acceso solo para editores" });
+
+    try {
+        const articulos = await Articulo.find().sort({ createdAt: -1 });
+        
+        // Populate revisores for each article to show in the UI
+        const resultado = await Promise.all(articulos.map(async (art) => {
+            const asignaciones = await AsignacionRevision.find({ articuloId: art._id, estado: { $ne: 'cancelado' } });
+            const revisoresData = asignaciones.map(a => ({
+                id: a.revisorId,
+                revisor: a.revisorId,
+                completado: a.estado === 'evaluado'
+            }));
+            
+            return {
+                _id: art._id,
+                titulo: art.titulo,
+                estado: estadoArticuloDbToUi[art.estado] || art.estado,
+                area: 'General',
+                revisores: revisoresData
+            };
+        }));
+
+        return res.json(resultado);
+    } catch (error) {
+        console.error('Error obteniendo panel de editor:', error);
+        return res.status(500).json({ error: 'Error interno.' });
+    }
+});
+
+// N2. Endpoint: Obtener lista de Revisores disponibles (Editor)
+app.get('/api/revisores', verificarToken, async (req, res) => {
+    if (req.user.role !== 'editor') return res.status(403).json({ error: "Acceso solo para editores" });
+
+    try {
+        const revisores = await Usuario.find({ rol: 'revisor', activo: true }).select('username _id');
+        
+        const resultado = await Promise.all(revisores.map(async (rev) => {
+            const cargaAgregada = await AsignacionRevision.countDocuments({ revisorId: rev._id, estado: { $in: ['pendiente', 'en_progreso'] } });
+            return {
+                id: rev._id,
+                nombre: rev.username,
+                carga: cargaAgregada
+            };
+        }));
+
+        return res.json(resultado);
+    } catch (error) {
+        console.error('Error obteniendo panel de revisores:', error);
+        return res.status(500).json({ error: 'Error interno.' });
+    }
+});
+
+// N3. Endpoint: Asignar un revisor a un artículo (Editor)
+app.post('/api/asignaciones', verificarToken, async (req, res) => {
+    if (req.user.role !== 'editor') return res.status(403).json({ error: "Acceso solo para editores" });
+
+    try {
+        const { articuloId, revisorId } = req.body;
+        if (!articuloId || !revisorId) return res.status(400).json({ error: 'Data invalida' });
+
+        const existe = await AsignacionRevision.findOne({ articuloId, revisorId, estado: { $ne: 'cancelado' } });
+        if (existe) return res.status(400).json({ error: 'Este revisor ya está asignado al artículo.' });
+
+        const asignacion = new AsignacionRevision({ articuloId, revisorId, estado: 'pendiente' });
+        await asignacion.save();
+
+        // Si tiene al menos 2 revisores, pasar a en_revision
+        const cuentaRevisores = await AsignacionRevision.countDocuments({ articuloId, estado: { $ne: 'cancelado'} });
+        if (cuentaRevisores >= 2) {
+            await Articulo.findByIdAndUpdate(articuloId, { estado: 'en_revision' });
+        }
+
+        return res.status(201).json({ mensaje: 'Revisor asignado con éxito.' });
+    } catch (error) {
+        console.error('Error asignando revisor:', error);
+        return res.status(500).json({ error: 'Error interno.' });
+    }
+});
+
+// N4. Endpoint: Quitar Asignacion (Editor)
+app.delete('/api/asignaciones', verificarToken, async (req, res) => {
+    if (req.user.role !== 'editor') return res.status(403).json({ error: "Acceso solo para editores" });
+
+    try {
+        const { articuloId, revisorId } = req.body;
+        if (!articuloId || !revisorId) return res.status(400).json({ error: 'Data invalida' });
+
+        await AsignacionRevision.findOneAndUpdate({ articuloId, revisorId, estado: { $ne: 'evaluado' } }, { estado: 'cancelado' });
+
+        return res.status(200).json({ mensaje: 'Asignación removida.' });
+    } catch (error) {
+        return res.status(500).json({ error: 'Error al quitar revisión.' });
+    }
+});
+
+// N5. Endpoint: Decidir status final articulo (Editor)
+app.put('/api/articulos/:id/estado', verificarToken, async (req, res) => {
+    if (req.user.role !== 'editor') return res.status(403).json({ error: "Acceso solo para editores" });
+
+    try {
+        const { id } = req.params;
+        const { estado } = req.body; // 'Aceptado' o 'Rechazado' -> lo pasamos a db form
+        let estadoDb = 'recibido';
+        if (estado === 'Aceptado') estadoDb = 'aceptado';
+        if (estado === 'Rechazado') estadoDb = 'rechazado';
+
+        await Articulo.findByIdAndUpdate(id, { estado: estadoDb });
+        return res.status(200).json({ mensaje: 'Decisión registrada correctamente.' });
+    } catch (error) {
+        return res.status(500).json({ error: 'Error interno de decision.' });
+    }
+});
+
+// 5. Endpoint (TAREA 2313): Enviar Evaluación de Artículo (Revisor)
+app.post('/api/evaluar', verificarToken, async (req, res) => {
     if (req.user.role !== 'revisor') return res.status(403).json({ error: "Acceso solo para revisores" });
-    
-    const { articuloId, veredicto, comentarios } = req.body;
+    try {
+        const { articuloId, veredicto, comentarios } = req.body;
+        const veredictoDb = veredictoUiToDb[veredicto] || String(veredicto || '').toLowerCase().replace(/\s+/g, '_');
 
-    // Aquí en el futuro guardaríamos en una base de datos real.
-    // Por ahora, simulamos que todo salió bien.
-    console.log(`Nueva evaluación recibida:
-    - Artículo ID: ${articuloId}
-    - Veredicto: ${veredicto}
-    - Comentarios: ${comentarios}`);
+        if (!articuloId || !veredictoDb || !comentarios) {
+            return res.status(400).json({ error: 'Faltan datos requeridos para la evaluación.' });
+        }
 
-    res.json({ mensaje: "Evaluación enviada con éxito. El editor ha sido notificado." });
+        const asignacion = await AsignacionRevision.findOne({
+            articuloId,
+            revisorId: req.user.id,
+            estado: { $ne: 'cancelado' }
+        });
+
+        if (!asignacion) {
+            return res.status(403).json({ error: 'El artículo no está asignado a este revisor o fue cancelado.' });
+        }
+
+        const evaluacion = new Evaluacion({
+            articuloId,
+            revisorId: req.user.id,
+            veredicto: veredictoDb,
+            comentarios
+        });
+        
+        await evaluacion.save();
+        await AsignacionRevision.findByIdAndUpdate(asignacion._id, { estado: 'evaluado' });
+
+        return res.json({ mensaje: "Evaluación enviada con éxito. El editor ha sido notificado." });
+    } catch (error) {
+        console.error('Error al guardar evaluación:', error);
+        return res.status(500).json({ error: 'Error interno del servidor.' });
+    }
 });
 
-app.listen(3000, () => console.log('Servidor PoC corriendo en http://localhost:3000'));
+const iniciarServidor = async () => {
+    try {
+        await connectDB();
+        app.listen(3000, () => console.log('[Servidor] Backend corriendo en http://localhost:3000'));
+    } catch (error) {
+        console.error('No se pudo iniciar el backend:', error);
+        process.exit(1);
+    }
+};
+
+iniciarServidor();

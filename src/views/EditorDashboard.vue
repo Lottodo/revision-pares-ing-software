@@ -1,676 +1,462 @@
 <template>
-  <div class="contenedor-editor">
-    <h2>🗂️ Panel del Editor</h2>
-    <p class="instrucciones">
-      Asigna al menos 2 revisores a cada artículo. La decisión final solo estará disponible cuando
-      todos los revisores hayan completado su revisión.
-    </p>
+  <v-container fluid class="pa-md-8 pa-4 max-width-container">
+    <v-card class="elevation-3 mb-8 w-100 rounded-xl overflow-hidden">
+      <!-- Gradient Header -->
+      <v-toolbar color="transparent" flat class="bg-gradient-header px-4">
+        <v-toolbar-title class="text-white font-weight-black text-h5">
+          Panel de Editor
+        </v-toolbar-title>
+      </v-toolbar>
+      <v-card-text class="pa-md-8 pa-6">
+        <p class="text-body-1 text-grey-darken-2 font-weight-medium">
+          Asigna al menos 2 revisores estratégicos a cada manuscrito. La decisión final "Aceptar/Rechazar" estará bloqueada hasta que todos los revisores emitan su veredicto.
+        </p>
+      </v-card-text>
+    </v-card>
 
-    <div v-if="cargando" class="cargando">Cargando datos...</div>
+    <v-row v-if="cargando">
+      <v-col cols="12" class="d-flex justify-center pa-10">
+        <v-progress-circular indeterminate color="green-darken-3" size="64" width="4"></v-progress-circular>
+      </v-col>
+    </v-row>
 
-    <div v-else class="layout-dos-columnas">
+    <v-row v-else class="match-height-row">
+      <!-- COLUMNA IZQUIERDA: Artículos -->
+      <v-col cols="12" md="6" class="d-flex flex-column">
+        <div class="d-flex align-center mb-6 pl-2">
+          <v-icon color="grey-darken-3" class="mr-3" size="32">mdi-file-document-multiple-outline</v-icon>
+          <h3 class="text-h5 font-weight-black text-grey-darken-4 mb-0">Artículos Activos</h3>
+        </div>
 
-      <!-- ════════════════════════════════════
-           COLUMNA IZQUIERDA: Artículos
-      ════════════════════════════════════ -->
-      <div class="columna-articulos">
-        <h3 class="subtitulo-seccion">Artículos activos</h3>
-
-        <div
+        <v-card
           v-for="articulo in articulos"
-          :key="articulo.id"
-          class="tarjeta-articulo"
-          :class="{ seleccionado: articuloSeleccionado?.id === articulo.id }"
+          :key="articulo._id || articulo.id"
+          class="mb-6 transition-swing rounded-xl border-card"
+          :class="{ 'selected-card': articuloSeleccionado?.id === (articulo._id || articulo.id) }"
+          :elevation="articuloSeleccionado?.id === (articulo._id || articulo.id) ? 8 : 2"
           @click="seleccionarArticulo(articulo)"
+          :ripple="false"
         >
-          <!-- Encabezado: título + estado -->
-          <div class="tarjeta-encabezado">
-            <span class="tarjeta-titulo">{{ articulo.titulo }}</span>
-            <span :class="['etiqueta-estado', claseEstado(articulo.estado)]">
-              {{ articulo.estado }}
-            </span>
-          </div>
-
-          <div class="tarjeta-area">{{ articulo.area }}</div>
-
-          <!-- Chips de revisores con estado individual -->
-          <div class="tarjeta-revisores">
-            <span v-if="articulo.revisores.length === 0" class="sin-revisores">
-              Sin revisores asignados
-            </span>
-            <span
-              v-for="rev in articulo.revisores"
-              :key="rev.id"
-              :class="['chip-revisor', rev.completado ? 'chip-ok' : 'chip-pendiente']"
-            >
-              {{ nombreRevisor(rev.id) }}
-              <span class="chip-icono">{{ rev.completado ? '✔' : '⏳' }}</span>
-              <button
-                class="btn-quitar"
-                :disabled="articuloDecidido(articulo)"
-                @click.stop="quitarRevisor(articulo, rev.id)"
-              >×</button>
-            </span>
-          </div>
-
-          <!-- Indicador de asignados -->
-          <div class="indicador-asignados">
-            <span v-if="articulo.revisores.length >= 2" class="asignados-ok">
-              Asignados: {{ articulo.revisores.length }} ✔
-            </span>
-            <span v-else class="asignados-pendiente">
-              Asignados: {{ articulo.revisores.length }} (mínimo: 2)
-            </span>
-          </div>
-
-          <!-- ── Zona de decisión final ── -->
-          <div class="zona-decision" @click.stop>
-
-            <!-- Estado: artículo ya decidido -->
-            <template v-if="articuloDecidido(articulo)">
-              <span :class="['decision-tomada', articulo.estado === 'Aceptado' ? 'decision-aceptado' : 'decision-rechazado']">
-                Decisión registrada: <strong>{{ articulo.estado }}</strong>
-              </span>
-            </template>
-
-            <!-- Estado: menos de 2 revisores -->
-            <template v-else-if="articulo.revisores.length < 2">
-              <span class="mensaje-guia advertencia">
-                ⚠ Se requieren al menos 2 revisores
-              </span>
-              <div class="botones-decision">
-                <button class="btn-aceptar" disabled>✅ Aceptar</button>
-                <button class="btn-rechazar" disabled>❌ Rechazar</button>
-              </div>
-            </template>
-
-            <!-- Estado: revisores asignados pero no todos completaron -->
-            <template v-else-if="!puedeDecidir(articulo)">
-              <span class="mensaje-guia bloqueado">
-                🔒 {{ conteoRevisiones(articulo) }} — esperando a {{ revisoresPendientes(articulo) }}
-              </span>
-              <div class="botones-decision">
-                <button class="btn-aceptar" disabled>✅ Aceptar</button>
-                <button class="btn-rechazar" disabled>❌ Rechazar</button>
-              </div>
-            </template>
-
-            <!-- Estado: listo para decidir -->
-            <template v-else>
-              <span class="mensaje-guia listo">
-                ✅ Todas las revisiones completadas. Puedes tomar una decisión.
-              </span>
-              <div class="botones-decision">
-                <button class="btn-aceptar" @click="decidirArticulo(articulo, 'Aceptado')">✅ Aceptar</button>
-                <button class="btn-rechazar" @click="decidirArticulo(articulo, 'Rechazado')">❌ Rechazar</button>
-              </div>
-            </template>
-
-          </div>
-          <!-- ── Fin zona de decisión ── -->
-
-        </div>
-      </div>
-
-      <!-- ════════════════════════════════════
-           COLUMNA DERECHA: Panel de asignación
-      ════════════════════════════════════ -->
-      <div class="columna-revisores">
-        <h3 class="subtitulo-seccion">Revisores disponibles</h3>
-
-        <div v-if="!articuloSeleccionado" class="sin-seleccion">
-          Selecciona un artículo para gestionar sus revisores.
-        </div>
-
-        <div v-else>
-          <p class="articulo-activo">
-            Gestionando: <strong>{{ articuloSeleccionado.titulo }}</strong>
-          </p>
-
-          <!-- Barra de progreso de revisiones -->
-          <div v-if="articuloSeleccionado.revisores.length > 0" class="barra-progreso-wrap">
-            <span class="barra-label">
-              Revisiones: {{ revisionesCompletadas(articuloSeleccionado) }} de {{ articuloSeleccionado.revisores.length }}
-            </span>
-            <div class="barra-progreso">
-              <div
-                v-for="rev in articuloSeleccionado.revisores"
-                :key="rev.id"
-                :class="['barra-segmento', rev.completado ? 'segmento-ok' : 'segmento-pendiente']"
-              ></div>
+          <v-card-text class="pa-6">
+            <div class="d-flex justify-space-between align-start mb-3">
+              <span class="text-h6 font-weight-black text-grey-darken-4 lh-tight">{{ articulo.titulo }}</span>
+              <v-chip :color="getColorEstado(articulo.estado)" size="small" variant="flat" class="font-weight-bold text-white shadow-sm ml-2">
+                {{ articulo.estado }}
+              </v-chip>
             </div>
-          </div>
 
-          <p v-if="mensajeError" class="error">{{ mensajeError }}</p>
-          <p v-if="mensajeExito" class="exito">{{ mensajeExito }}</p>
+            <div class="text-body-2 text-grey-darken-1 mb-4 font-weight-medium">Área: {{ articulo.area || 'General' }}</div>
 
-          <!-- Bloqueo si el artículo ya fue decidido -->
-          <p v-if="articuloDecidido(articuloSeleccionado)" class="aviso-bloqueado">
-            🔒 Este artículo ya tiene una decisión final y no puede modificarse.
-          </p>
-
-          <table v-else class="tabla-revisores">
-            <thead>
-              <tr>
-                <th>Nombre</th>
-                <th>Especialidad</th>
-                <th>Revisiones activas</th>
-                <th>Estado aquí</th>
-                <th>Acción</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr
-                v-for="revisor in revisores"
-                :key="revisor.id"
-                :class="{ 'fila-asignado': estaAsignado(articuloSeleccionado, revisor.id) }"
+            <!-- Chips revisores -->
+            <div class="d-flex flex-wrap gap-2 mb-4 bg-grey-lighten-4 pa-3 rounded-lg border">
+              <span v-if="!articulo.revisores || articulo.revisores.length === 0" class="text-caption text-grey-darken-1 font-weight-medium">
+                Arrastra o asigna revisores abajo
+              </span>
+              <v-chip
+                v-for="rev in articulo.revisores"
+                :key="rev.id"
+                :color="rev.completado ? 'green-darken-1' : 'grey-darken-2'"
+                :variant="rev.completado ? 'flat' : 'outlined'"
+                size="small"
+                class="mr-2 mb-2 font-weight-bold"
               >
-                <td>{{ revisor.nombre }}</td>
-                <td>{{ revisor.especialidad }}</td>
-                <td>
-                  <span :class="['etiqueta-carga', claseCarga(revisor.carga)]">
-                    {{ revisor.carga }}
-                  </span>
-                </td>
-                <!-- Estado del revisor en este artículo -->
-                <td>
-                  <template v-if="estaAsignado(articuloSeleccionado, revisor.id)">
-                    <span v-if="estadoRevision(articuloSeleccionado, revisor.id)" class="estado-rev-ok">✔ Completa</span>
-                    <button v-else class="btn-marcar" @click="marcarCompleta(articuloSeleccionado, revisor.id)">
-                      Marcar completa
-                    </button>
-                  </template>
-                  <span v-else class="estado-rev-na">—</span>
-                </td>
-                <td>
-                  <button
-                    v-if="!estaAsignado(articuloSeleccionado, revisor.id)"
-                    class="btn-asignar"
-                    @click="asignarRevisor(revisor)"
-                  >
-                    Asignar
-                  </button>
-                  <button
-                    v-else
-                    class="btn-quitar-tabla"
-                    @click="quitarRevisor(articuloSeleccionado, revisor.id)"
-                  >
-                    Quitar
-                  </button>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
+                {{ nombreRevisor(rev.revisor || rev.id) }}
+                <v-icon end size="14" class="ml-1">{{ rev.completado ? 'mdi-check-circle' : 'mdi-clock-outline' }}</v-icon>
+                <v-btn
+                  v-if="!articuloDecidido(articulo)"
+                  icon="mdi-close-circle"
+                  size="x-small"
+                  variant="text"
+                  color="red"
+                  class="ml-1 pa-0 border-0"
+                  @click.stop="quitarRevisor(articulo, rev.revisor || rev.id)"
+                ></v-btn>
+              </v-chip>
+            </div>
 
-    </div>
-  </div>
+            <div class="text-caption mb-5 d-flex align-center">
+              <v-icon :color="(articulo.revisores && articulo.revisores.length >= 2) ? 'green-darken-2' : 'orange-darken-2'" size="18" class="mr-2">
+                {{ (articulo.revisores && articulo.revisores.length >= 2) ? 'mdi-shield-check' : 'mdi-shield-alert' }}
+              </v-icon>
+              <span :class="(articulo.revisores && articulo.revisores.length >= 2) ? 'text-green-darken-3 font-weight-bold' : 'text-orange-darken-3 font-weight-bold'">
+                Asignados: {{ articulo.revisores ? articulo.revisores.length : 0 }} {{ (articulo.revisores && articulo.revisores.length >= 2) ? '(Completado)' : '(Mínimo: 2)' }}
+              </span>
+            </div>
+
+            <!-- Zona Decision -->
+            <v-divider class="mb-4"></v-divider>
+            <div class="d-flex flex-column" @click.stop>
+              <template v-if="articuloDecidido(articulo)">
+                <v-alert density="compact" variant="tonal" :color="articulo.estado === 'Aceptado' ? 'green-darken-3' : 'red-darken-3'" class="font-weight-bold rounded-lg">
+                  Decisión Final: {{ articulo.estado }}
+                </v-alert>
+              </template>
+
+              <template v-else-if="!articulo.revisores || articulo.revisores.length < 2">
+                <span class="text-caption text-orange-darken-3 mb-3 font-weight-bold">Bloqueo: Requiere al menos 2 revisores asignados</span>
+                <div class="d-flex gap-3">
+                  <v-btn size="small" color="grey-lighten-2" class="text-grey-darken-2 font-weight-bold rounded-pill shadow-sm" disabled elevation="0">Aceptar</v-btn>
+                  <v-btn size="small" color="grey-lighten-2" class="text-grey-darken-2 font-weight-bold rounded-pill shadow-sm" disabled elevation="0">Rechazar</v-btn>
+                </div>
+              </template>
+
+              <template v-else-if="!puedeDecidir(articulo)">
+                <span class="text-caption text-grey-darken-2 mb-3 font-weight-bold">
+                  ⏱ Esperando dictámenes: {{ revisoresPendientes(articulo) }}
+                </span>
+                <div class="d-flex gap-3">
+                  <v-btn size="small" color="grey-lighten-2" class="text-grey-darken-2 font-weight-bold rounded-pill shadow-sm" disabled elevation="0">Aceptar</v-btn>
+                  <v-btn size="small" color="grey-lighten-2" class="text-grey-darken-2 font-weight-bold rounded-pill shadow-sm" disabled elevation="0">Rechazar</v-btn>
+                </div>
+              </template>
+
+              <template v-else>
+                <v-alert density="compact" type="success" variant="tonal" class="mb-3 rounded-lg text-green-darken-3 font-weight-bold">
+                  Dictámenes emitidos. Toma una decisión.
+                </v-alert>
+                <div class="d-flex gap-3">
+                  <v-btn size="small" color="green-darken-2" class="font-weight-bold rounded-pill text-white" elevation="2" @click="decidirArticulo(articulo, 'Aceptado')">Aceptar Manuscrito</v-btn>
+                  <v-btn size="small" color="red-darken-2" class="font-weight-bold rounded-pill text-white" elevation="2" @click="decidirArticulo(articulo, 'Rechazado')">Rechazar</v-btn>
+                </div>
+              </template>
+            </div>
+          </v-card-text>
+        </v-card>
+      </v-col>
+
+      <!-- COLUMNA DERECHA: Revisores -->
+      <v-col cols="12" md="6" class="d-flex flex-column h-100">
+        <div class="d-flex align-center mb-6 pl-2">
+          <v-icon color="grey-darken-3" class="mr-3" size="32">mdi-account-group-outline</v-icon>
+          <h3 class="text-h5 font-weight-black text-grey-darken-4 mb-0">Staff de Peritos</h3>
+        </div>
+
+        <div v-if="!articuloSeleccionado" class="d-flex align-center justify-center flex-grow-1 bg-white rounded-xl border border-dashed pa-10" style="min-height: 400px; border-width: 2px !important; border-color: #E0E0E0 !important;">
+          <div class="text-center">
+             <v-icon size="64" color="grey-lighten-1" class="mb-4">mdi-cursor-default-click-outline</v-icon>
+             <p class="text-h6 text-grey-darken-1 font-weight-medium">Selecciona un artículo<br>para abrir el panel de asignación</p>
+          </div>
+        </div>
+
+        <v-card v-else class="elevation-4 rounded-xl sticky-panel flex-grow-1 border">
+          <v-card-text class="pa-6">
+            <div class="bg-blue-grey-lighten-5 pa-4 rounded-lg mb-6 border">
+                <span class="text-caption text-uppercase text-blue-grey-darken-2 font-weight-black tracking-wide">Foco de Asignación</span>
+                <p class="text-h6 mt-1 font-weight-black text-grey-darken-4 lh-tight">
+                  {{ articuloSeleccionado.titulo }}
+                </p>
+            </div>
+
+            <v-alert v-if="mensajeError" type="error" variant="tonal" class="mb-5 rounded-lg font-weight-medium" density="compact">{{ mensajeError }}</v-alert>
+            <v-alert v-if="mensajeExito" type="success" variant="tonal" class="mb-5 rounded-lg text-green-darken-4 font-weight-medium" density="compact">{{ mensajeExito }}</v-alert>
+
+            <v-alert v-if="articuloDecidido(articuloSeleccionado)" type="warning" variant="tonal" class="mb-5 rounded-lg font-weight-medium" density="compact">
+              Este artículo ya tiene una decisión final y ha sido cerrado.
+            </v-alert>
+
+            <v-data-table
+              v-else
+              :headers="headersRevisores"
+              :items="revisores"
+              class="elevation-0 bg-transparent"
+              density="comfortable"
+              hide-default-footer
+              :items-per-page="-1"
+            >
+              <template v-slot:item.nombre="{ item }">
+                <div class="d-flex align-center">
+                  <v-avatar color="blue-grey-lighten-4" size="32" class="mr-3">
+                    <span class="text-blue-grey-darken-3 font-weight-black text-caption">{{ item.nombre.substring(0, 2).toUpperCase() }}</span>
+                  </v-avatar>
+                  <span class="font-weight-bold text-grey-darken-4 text-subtitle-2">{{ item.nombre }}</span>
+                </div>
+              </template>
+
+              <template v-slot:item.carga="{ item }">
+                <v-chip size="small" :color="getColorCarga(item.carga)" variant="flat" class="text-white font-weight-bold shadow-sm">
+                  {{ item.carga }}
+                </v-chip>
+              </template>
+
+              <template v-slot:item.estadoRev="{ item }">
+                <div v-if="estaAsignado(articuloSeleccionado, item.id || item._id)">
+                  <v-chip v-if="estadoRevision(articuloSeleccionado, item.id || item._id)" size="small" color="green-darken-2" variant="tonal" class="font-weight-bold px-2">
+                    <v-icon start size="14">mdi-check-all</v-icon> Dictaminó
+                  </v-chip>
+                  <v-chip v-else size="small" color="orange-darken-2" variant="outlined" class="font-weight-bold px-2 bg-white">
+                    <v-icon start size="14" class="mdi-spin">mdi-loading</v-icon> Leyendo
+                  </v-chip>
+                </div>
+                <span v-else class="text-grey-lighten-1 text-caption font-weight-medium">—</span>
+              </template>
+
+              <template v-slot:item.accion="{ item }">
+                <v-btn
+                  v-if="!estaAsignado(articuloSeleccionado, item.id || item._id)"
+                  size="small"
+                  color="#1a5c3a"
+                  variant="flat"
+                  class="rounded-pill font-weight-bold text-white px-4"
+                  @click="asignarRevisor(item)"
+                >
+                  Vincular
+                </v-btn>
+                <v-btn
+                  v-else
+                  size="small"
+                  color="red-lighten-1"
+                  variant="tonal"
+                  class="rounded-pill font-weight-bold px-4"
+                  @click="quitarRevisor(articuloSeleccionado, item.id || item._id)"
+                >
+                  <v-icon size="16">mdi-close</v-icon> Remover
+                </v-btn>
+              </template>
+            </v-data-table>
+          </v-card-text>
+        </v-card>
+      </v-col>
+    </v-row>
+  </v-container>
 </template>
 
 <script setup>
 import { ref, onMounted } from 'vue';
 
-// ─── Estado global ───────────────────────────────────────
-const articulos            = ref([]);
-const revisores            = ref([]);
-const cargando             = ref(true);
+const articulos = ref([]);
+const revisores = ref([]);
+const cargando = ref(true);
 const articuloSeleccionado = ref(null);
-const mensajeError         = ref('');
-const mensajeExito         = ref('');
+const mensajeError = ref('');
+const mensajeExito = ref('');
 
-// ─── Helpers de consulta ──────────────────────────────────
+const headersRevisores = [
+  { title: 'Revisor', key: 'nombre', align: 'start' },
+  { title: 'Carga', key: 'carga', align: 'center' },
+  { title: 'Status', key: 'estadoRev', align: 'center' },
+  { title: 'Acción', key: 'accion', align: 'end', sortable: false }
+];
 
-const nombreRevisor = (id) => {
-  const r = revisores.value.find(rv => rv.id === id);
-  return r ? r.nombre.split(' ').slice(-1)[0] : '—';
+const getColorEstado = (estado) => {
+  switch (estado?.toLowerCase()) {
+    case 'recibido': return 'grey-lighten-1';
+    case 'pendiente': return 'grey-darken-1';
+    case 'en revisión': return 'blue-darken-2';
+    case 'cambios menores': return 'teal-darken-1';
+    case 'cambios mayores': return 'purple-darken-2';
+    case 'aceptado': return 'green-darken-3';
+    case 'rechazado': return 'red-darken-3';
+    default: return 'black';
+  }
 };
 
-const estaAsignado = (articulo, revisorId) =>
-  articulo.revisores.some(r => r.id === revisorId);
+const getColorCarga = (carga) => {
+  if (carga === 0) return 'blue-grey-lighten-1';
+  if (carga <= 2) return 'green-darken-2';
+  if (carga <= 4) return 'orange-darken-2';
+  return 'red-darken-2';
+};
 
-const estadoRevision = (articulo, revisorId) =>
-  articulo.revisores.find(r => r.id === revisorId)?.completado ?? false;
+const nombreRevisor = (id) => {
+  const r = revisores.value.find(rv => rv.id === id || rv._id === id); 
+  if(!r) return 'Usuario';
+  return r.nombre || r.username || 'Usuario';
+};
 
-const revisionesCompletadas = (articulo) =>
-  articulo.revisores.filter(r => r.completado).length;
+const estaAsignado = (articulo, revisorId) => {
+  if (!articulo || !articulo.revisores) return false;
+  return articulo.revisores.some(r => r.revisor === revisorId || r.id === revisorId);
+};
 
-// Condición principal: ≥2 revisores Y todos completaron
+const estadoRevision = (articulo, revisorId) => {
+  if (!articulo || !articulo.revisores) return false;
+  return articulo.revisores.find(r => r.revisor === revisorId || r.id === revisorId)?.completado ?? false;
+};
+
 const puedeDecidir = (articulo) =>
-  articulo.revisores.length >= 2 &&
+  articulo.revisores && articulo.revisores.length >= 2 &&
   articulo.revisores.every(r => r.completado);
 
 const articuloDecidido = (articulo) =>
-  articulo.estado === 'Aceptado' || articulo.estado === 'Rechazado';
+  articulo.estado === 'Aceptado' || articulo.estado === 'Rechazado' || articulo.estado === 'aceptado' || articulo.estado === 'rechazado';
 
-const conteoRevisiones = (articulo) => {
-  const total    = articulo.revisores.length;
-  const completas = revisionesCompletadas(articulo);
-  return `${completas} de ${total} revisiones completadas`;
-};
-
-const revisoresPendientes = (articulo) =>
-  articulo.revisores
+const revisoresPendientes = (articulo) => {
+  if (!articulo || !articulo.revisores) return '';
+  return articulo.revisores
     .filter(r => !r.completado)
-    .map(r => nombreRevisor(r.id))
+    .map(r => nombreRevisor(r.revisor || r.id))
     .join(', ');
-
-// ─── Clases CSS dinámicas ─────────────────────────────────
-
-const claseEstado = (estado) => ({
-  'Pendiente':   'estado-pendiente',
-  'En Revisión': 'estado-revision',
-  'Aceptado':    'estado-aceptado',
-  'Rechazado':   'estado-rechazado',
-}[estado] ?? 'estado-default');
-
-const claseCarga = (carga) => {
-  if (carga <= 1) return 'carga-baja';
-  if (carga <= 3) return 'carga-media';
-  return 'carga-alta';
 };
-
-// ─── Acciones ─────────────────────────────────────────────
 
 const seleccionarArticulo = (articulo) => {
-  if (articuloDecidido(articulo)) return;
+  if (articuloDecidido(articulo)) {
+      articuloSeleccionado.value = articulo; // allow view mode
+      return;
+  }
   articuloSeleccionado.value = articulo;
   mensajeError.value = '';
   mensajeExito.value = '';
 };
 
-const asignarRevisor = (revisor) => {
+// Acciones Reales contra el Backend
+const fetchPanelData = async () => {
+    cargando.value = true;
+    try {
+        const token = localStorage.getItem('token');
+        if(!token) throw new Error("Sin token");
+
+        const [resArts, resRevs] = await Promise.all([
+          fetch('/api/articulos', { headers: { 'Authorization': `Bearer ${token}` } }),
+          fetch('/api/revisores', { headers: { 'Authorization': `Bearer ${token}` } })
+        ]);
+
+        if (resArts.ok) {
+            articulos.value = await resArts.json();
+            articulos.value.forEach(a => { a.id = a._id; }); // mapping
+        }
+
+        if (resRevs.ok) {
+            const rawRevs = await resRevs.json();
+            revisores.value = rawRevs.map(r => ({...r, id: r._id || r.id}));
+        } else {
+             mensajeError.value = "Imposible cargar el staff.";
+        }
+
+    } catch (e) {
+        console.error("Error cargando panel:", e);
+        mensajeError.value = "Error al intentar sincronizar con la nube.";
+    } finally {
+        cargando.value = false;
+    }
+}
+
+const asignarRevisor = async (revisor) => {
   const art = articuloSeleccionado.value;
   if (!art) return;
 
-  art.revisores.push({ id: revisor.id, completado: false });
-  revisor.carga++;
-  if (art.revisores.length >= 2) art.estado = 'En Revisión';
-
-  // TODO: POST /api/asignaciones { articuloId: art.id, revisorId: revisor.id }
-
-  mensajeError.value = '';
-  mensajeExito.value = `${revisor.nombre} asignado correctamente.`;
-};
-
-const quitarRevisor = (articulo, revisorId) => {
-  const revisor = revisores.value.find(r => r.id === revisorId);
-  if (revisor) revisor.carga = Math.max(0, revisor.carga - 1);
-
-  articulo.revisores = articulo.revisores.filter(r => r.id !== revisorId);
-  if (articulo.revisores.length < 2) articulo.estado = 'Pendiente';
-
-  // TODO: DELETE /api/asignaciones { articuloId: articulo.id, revisorId }
-
   mensajeError.value = '';
   mensajeExito.value = '';
-};
-
-// Marca la revisión de un revisor como completada (flujo sin backend)
-const marcarCompleta = (articulo, revisorId) => {
-  const rev = articulo.revisores.find(r => r.id === revisorId);
-  if (rev) rev.completado = true;
-
-  // TODO: PATCH /api/revisiones { articuloId: articulo.id, revisorId, completado: true }
-};
-
-// Decisión final: solo si puedeDecidir()
-const decidirArticulo = (articulo, decision) => {
-  if (!puedeDecidir(articulo)) return;
-  articulo.estado = decision;
-
-  // TODO: PATCH /api/articulos/:id/decision { estado: decision }
-};
-
-// ─── Carga inicial ────────────────────────────────────────
-
-onMounted(async () => {
+  
   try {
-    const token = localStorage.getItem('jwt_token');
-    const [resArts, resRevs] = await Promise.all([
-      fetch('http://localhost:3000/api/articulos', { headers: { Authorization: token } }),
-      fetch('http://localhost:3000/api/revisores',  { headers: { Authorization: token } })
-    ]);
-    if (resArts.ok && resRevs.ok) {
-      articulos.value = await resArts.json();
-      revisores.value = await resRevs.json();
-    } else throw new Error('Backend no listo');
-
-  } catch {
-    console.warn('Backend no disponible. Usando datos de prueba.');
-
-    articulos.value = [
-      { id: 1, titulo: 'Red neuronal para detección de anomalías en tráfico', area: 'IA / ML',       estado: 'Pendiente',   revisores: [] },
-      { id: 2, titulo: 'Protocolo seguro de IoT basado en blockchain',        area: 'Seguridad',     estado: 'Pendiente',   revisores: [] },
-      { id: 3, titulo: 'Framework de pruebas para microservicios reactivos',  area: 'Ing. Software', estado: 'En Revisión', revisores: [
-        { id: 2, completado: true  },
-        { id: 4, completado: false },
-      ]},
-    ];
-
-    revisores.value = [
-      { id: 1, nombre: 'Dra. Ana Flores',   especialidad: 'IA / ML',        carga: 1 },
-      { id: 2, nombre: 'Dr. Roberto Luna',  especialidad: 'Bases de Datos', carga: 2 },
-      { id: 3, nombre: 'Mtra. Sofía Reyes', especialidad: 'IA / ML',        carga: 0 },
-      { id: 4, nombre: 'Dr. Carlos Ibáñez', especialidad: 'Seguridad',      carga: 1 },
-      { id: 5, nombre: 'Dra. Laura Chávez', especialidad: 'Ing. Software',  carga: 2 },
-      { id: 6, nombre: 'Dr. Miguel Cruz',   especialidad: 'Redes',          carga: 4 },
-    ];
-  } finally {
-    cargando.value = false;
+     const token = localStorage.getItem('token');
+     const res = await fetch('/api/asignaciones', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ articuloId: art._id || art.id, revisorId: revisor.id || revisor._id })
+     });
+     
+     const data = await res.json();
+     if(res.ok) {
+        mensajeExito.value = 'Revisor vinculado exitosamente en DB.';
+        await fetchPanelData(); // refresh full state
+        // Reselect art visually
+        const updatedArt = articulos.value.find(a => a.id === (art._id || art.id));
+        if (updatedArt) articuloSeleccionado.value = updatedArt;
+     } else {
+        mensajeError.value = data.error || 'Error en vinculación.';
+     }
+  } catch(e) {
+     mensajeError.value = 'Peticion POST a /api/asignaciones falló.';
   }
+};
+
+const quitarRevisor = async (articulo, revisorId) => {
+  mensajeError.value = '';
+  mensajeExito.value = '';
+  try {
+     const token = localStorage.getItem('token');
+     const res = await fetch('/api/asignaciones', {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ articuloId: articulo._id || articulo.id, revisorId: revisorId })
+     });
+     
+     if(res.ok) {
+        mensajeExito.value = 'Removido de DB.';
+        await fetchPanelData();
+        const updatedArt = articulos.value.find(a => a.id === (articulo._id || articulo.id));
+        if (updatedArt) articuloSeleccionado.value = updatedArt;
+     } else {
+        mensajeError.value = 'No se pudo desvincular.';
+     }
+  } catch(e) {
+     mensajeError.value = 'Peticion DELETE a /api/asignaciones falló.';
+  }
+};
+
+const decidirArticulo = async (articulo, decision) => {
+  if (!puedeDecidir(articulo)) return;
+  
+  try {
+     const token = localStorage.getItem('token');
+     await fetch(`/api/articulos/${articulo._id || articulo.id}/estado`, {
+        method: 'PUT',
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ estado: decision })
+     });
+     mensajeExito.value = 'El dictamen ha sido cerrado y notificado en DB.';
+     await fetchPanelData();
+     const updatedArt = articulos.value.find(a => a.id === (articulo._id || articulo.id));
+     if (updatedArt) articuloSeleccionado.value = updatedArt;
+  } catch(e) {
+     console.error(e);
+     mensajeError.value = 'Fallo guardando dictamen final.';
+  }
+};
+
+onMounted(() => {
+    fetchPanelData();
 });
 </script>
 
 <style scoped>
-.contenedor-editor {
-  max-width: 1100px;
-  margin: 0 auto;
-  font-family: Arial, sans-serif;
-  color: #000;
+.bg-gradient-header {
+  background: linear-gradient(135deg, #0f3e2b 0%, #1a5c3a 100%);
 }
 
-.instrucciones {
-  color: #333;
-  margin-bottom: 20px;
+.lh-tight {
+  line-height: 1.2 !important;
 }
 
-.cargando {
-  color: #000;
-  font-weight: bold;
-  margin-top: 20px;
+.tracking-wide {
+  letter-spacing: 0.1em;
 }
 
-/* ── Layout ── */
-.layout-dos-columnas {
-  display: flex;
-  gap: 24px;
-  align-items: flex-start;
+.border-card {
+  border: 1px solid rgba(0,0,0,0.06);
 }
 
-.columna-articulos,
-.columna-revisores {
-  flex: 1;
-  min-width: 0;
+.shadow-sm {
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05) !important;
 }
 
-.subtitulo-seccion {
-  margin: 0 0 12px 0;
-  font-size: 1rem;
-  color: #2c3e50;
-  border-bottom: 2px solid #2c3e50;
-  padding-bottom: 6px;
+.selected-card {
+  border: 2px solid #1a5c3a !important;
+  transform: translateY(-2px);
 }
 
-/* ── Tarjeta de artículo ── */
-.tarjeta-articulo {
-  background: #fff;
-  border: 1px solid #ddd;
-  border-radius: 8px;
-  padding: 12px 15px;
-  margin-bottom: 10px;
-  cursor: pointer;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.08);
-  transition: border-color 0.2s;
-}
-.tarjeta-articulo:hover       { border-color: #2c3e50; }
-.tarjeta-articulo.seleccionado { border: 2px solid #007bff; }
-
-.tarjeta-encabezado {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 10px;
-  margin-bottom: 6px;
+.sticky-panel {
+  position: sticky;
+  top: 100px;
 }
 
-.tarjeta-titulo {
-  font-weight: bold;
-  font-size: 0.9rem;
-  color: #000;
-  line-height: 1.3;
+.match-height-row {
+  align-items: stretch;
 }
 
-.tarjeta-area {
-  font-size: 0.8rem;
-  color: #555;
-  margin-bottom: 8px;
+:deep(.v-data-table__th) {
+  text-transform: uppercase;
+  font-size: 0.70rem !important;
+  font-weight: 800 !important;
+  letter-spacing: 0.05em;
+  color: #78909c !important;
+  background-color: transparent !important;
+  border-bottom: 2px solid #eceff1 !important;
 }
-
-/* ── Chips de revisores ── */
-.tarjeta-revisores {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-bottom: 8px;
+:deep(.v-data-table__tr) {
+  transition: background-color 0.2s ease;
 }
-
-.sin-revisores {
-  font-size: 0.8rem;
-  color: #888;
-  font-style: italic;
+:deep(.v-data-table__tr:hover) {
+  background-color: #f8fafc !important;
 }
-
-.chip-revisor {
-  border-radius: 20px;
-  padding: 3px 10px;
-  font-size: 0.78rem;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  color: #333;
-}
-
-.chip-ok        { background-color: #d4edda; }
-.chip-pendiente { background-color: #e9ecef; }
-.chip-icono     { font-size: 0.75rem; }
-
-.btn-quitar {
-  background: none;
-  border: none;
-  color: #888;
-  cursor: pointer;
-  font-size: 0.9rem;
-  padding: 0;
-  line-height: 1;
-}
-.btn-quitar:hover    { color: #dc3545; }
-.btn-quitar:disabled { opacity: 0.4; cursor: not-allowed; }
-
-/* ── Indicador de asignados ── */
-.indicador-asignados  { font-size: 0.8rem; margin-top: 4px; }
-.asignados-ok         { color: #28a745; font-weight: bold; }
-.asignados-pendiente  { color: #f39c12; font-weight: bold; }
-
-/* ── Zona de decisión ── */
-.zona-decision {
-  margin-top: 10px;
-  padding-top: 10px;
-  border-top: 1px solid #eee;
-}
-
-.mensaje-guia {
-  display: block;
-  font-size: 0.78rem;
-  margin-bottom: 8px;
-  font-style: italic;
-}
-.mensaje-guia.advertencia { color: #e67e22; }
-.mensaje-guia.bloqueado   { color: #6c757d; }
-.mensaje-guia.listo       { color: #28a745; font-style: normal; font-weight: bold; }
-
-.botones-decision {
-  display: flex;
-  gap: 8px;
-}
-
-.btn-aceptar {
-  background-color: #28a745;
-  color: white;
-  border: none;
-  padding: 5px 14px;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 0.82rem;
-  transition: background-color 0.2s;
-}
-.btn-aceptar:hover    { background-color: #1e7e34; }
-.btn-aceptar:disabled { background-color: #a8d5b5; cursor: not-allowed; }
-
-.btn-rechazar {
-  background-color: #dc3545;
-  color: white;
-  border: none;
-  padding: 5px 14px;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 0.82rem;
-  transition: background-color 0.2s;
-}
-.btn-rechazar:hover    { background-color: #c82333; }
-.btn-rechazar:disabled { background-color: #f0a8ae; cursor: not-allowed; }
-
-.decision-tomada    { font-size: 0.82rem; font-style: italic; }
-.decision-aceptado  { color: #28a745; }
-.decision-rechazado { color: #dc3545; }
-
-/* ── Columna derecha ── */
-.sin-seleccion {
-  color: #888;
-  font-style: italic;
-  margin-top: 20px;
-}
-
-.articulo-activo {
-  font-size: 0.88rem;
-  color: #333;
-  margin-bottom: 10px;
-  line-height: 1.4;
-}
-
-/* ── Barra de progreso ── */
-.barra-progreso-wrap { margin-bottom: 14px; }
-
-.barra-label {
-  font-size: 0.8rem;
-  color: #555;
-  display: block;
-  margin-bottom: 5px;
-}
-
-.barra-progreso {
-  display: flex;
-  gap: 4px;
-  height: 8px;
-}
-
-.barra-segmento       { flex: 1; border-radius: 4px; }
-.segmento-ok          { background-color: #28a745; }
-.segmento-pendiente   { background-color: #dee2e6; }
-
-.aviso-bloqueado {
-  font-size: 0.88rem;
-  color: #6c757d;
-  background-color: #f8f9fa;
-  border: 1px solid #dee2e6;
-  border-radius: 6px;
-  padding: 10px 14px;
-  margin-top: 8px;
-}
-
-/* ── Tabla de revisores ── */
-.tabla-revisores {
-  width: 100%;
-  border-collapse: collapse;
-  background-color: #fff;
-  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-}
-
-.tabla-revisores th,
-.tabla-revisores td {
-  padding: 10px 12px;
-  text-align: left;
-  border-bottom: 1px solid #ddd;
-  color: #000;
-  font-size: 0.88rem;
-}
-
-.tabla-revisores th {
-  background-color: #f4f4f4;
-  font-weight: bold;
-}
-
-.fila-asignado { background-color: #f0fff4; }
-
-/* ── Etiquetas de estado ── */
-.etiqueta-estado {
-  padding: 4px 9px;
-  border-radius: 20px;
-  font-size: 0.78rem;
-  font-weight: bold;
-  color: white;
-  white-space: nowrap;
-}
-.estado-pendiente { background-color: #6c757d; }
-.estado-revision  { background-color: #f39c12; }
-.estado-aceptado  { background-color: #28a745; }
-.estado-rechazado { background-color: #dc3545; }
-.estado-default   { background-color: #000; }
-
-/* ── Etiquetas de carga ── */
-.etiqueta-carga {
-  display: inline-block;
-  padding: 3px 10px;
-  border-radius: 20px;
-  font-size: 0.78rem;
-  font-weight: bold;
-  color: white;
-}
-.carga-baja  { background-color: #28a745; }
-.carga-media { background-color: #f39c12; }
-.carga-alta  { background-color: #dc3545; }
-
-/* ── Estado de revisión en tabla ── */
-.estado-rev-ok { font-size: 0.82rem; color: #28a745; font-weight: bold; }
-.estado-rev-na { font-size: 0.82rem; color: #aaa; }
-
-.btn-marcar {
-  background-color: #fff;
-  color: #555;
-  border: 1px solid #ccc;
-  padding: 4px 10px;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 0.78rem;
-  transition: background-color 0.2s;
-}
-.btn-marcar:hover { background-color: #f0fff4; border-color: #28a745; color: #28a745; }
-
-/* ── Botones de tabla ── */
-.btn-asignar {
-  background-color: #007bff;
-  color: white;
-  border: none;
-  padding: 5px 12px;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 0.82rem;
-  transition: background-color 0.3s;
-}
-.btn-asignar:hover { background-color: #0056b3; }
-
-.btn-quitar-tabla {
-  background-color: #dc3545;
-  color: white;
-  border: none;
-  padding: 5px 12px;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 0.82rem;
-  transition: background-color 0.3s;
-}
-.btn-quitar-tabla:hover { background-color: #c82333; }
-
-.error { color: #dc3545; font-weight: bold; font-size: 0.88rem; margin-bottom: 10px; }
-.exito { color: #28a745; font-weight: bold; font-size: 0.88rem; margin-bottom: 10px; }
 </style>

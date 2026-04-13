@@ -1,54 +1,102 @@
 <template>
-  <div id="app-container">
-    <header class="menu-principal">
-      <h1>Sistema PeerReview</h1>
-      <nav>
-        <router-link to="/subir-articulo" class="nav-link">📤 Subir Artículo</router-link>
-        <router-link to="/estado-articulos" class="nav-link">📊 Ver Estado</router-link>
-        <router-link to="/articulos-asignados" class="nav-link">📋 Tareas Revisor</router-link>
-        <router-link to="/editor" class="nav-link">🗂️ Panel Editor</router-link>
-      </nav>
-    </header>
+  <v-app id="app-container" theme="light">
+    <v-app-bar v-if="isAuthenticated" color="rgba(255, 255, 255, 0.85)" class="glass-nav" elevation="1">
+      <v-app-bar-title class="font-weight-black text-green-darken-4 text-h5 ml-4">
+        Studio<span class="text-black">Peer</span>
+      </v-app-bar-title>
+      
+      <v-spacer></v-spacer>
 
-    <main class="contenido-principal">
-      <router-view></router-view> 
-    </main>
-  </div>
+      <div class="d-flex align-center mr-4 gap-2">
+        <template v-if="userRole === 'autor'">
+          <v-btn variant="text" prepend-icon="mdi-upload" to="/subir-articulo" class="text-grey-darken-3 font-weight-medium rounded-pill me-2">Subir Artículo</v-btn>
+          <v-btn variant="text" prepend-icon="mdi-format-list-checks" to="/estado-articulos" class="text-grey-darken-3 font-weight-medium rounded-pill me-2">Tus Manuscritos</v-btn>
+        </template>
+
+        <template v-if="userRole === 'revisor'">
+          <v-btn variant="text" prepend-icon="mdi-text-box-search-outline" to="/articulos-asignados" class="text-grey-darken-3 font-weight-medium rounded-pill me-2">Tareas Revisor</v-btn>
+        </template>
+
+        <template v-if="userRole === 'editor'">
+          <v-btn variant="text" prepend-icon="mdi-view-dashboard-outline" to="/editor" class="text-grey-darken-3 font-weight-medium rounded-pill me-2">Panel Editor</v-btn>
+        </template>
+
+        <v-btn variant="flat" color="red-darken-2" class="rounded-pill font-weight-bold px-6" prepend-icon="mdi-logout" @click="handleLogout">Salir</v-btn>
+      </div>
+    </v-app-bar>
+
+    <v-main class="bg-surface">
+      <v-container :class="{ 'py-10': isAuthenticated, 'pa-4': true }" fluid class="max-width-container">
+        <router-view v-slot="{ Component }">
+          <transition name="fade" mode="out-in">
+            <component :is="Component" />
+          </transition>
+        </router-view>
+      </v-container>
+    </v-main>
+  </v-app>
 </template>
 
-<style>
-body {
-  background-color: #f4f7f6; /* Gris muy claro y elegante */
-  margin: 0; /* Quita los márgenes por defecto del navegador */
-}
-</style>
+<script setup>
+import { computed } from 'vue'
+import { useRouter } from 'vue-router'
+import { useAuth } from '@/composables/useAuth'
 
-<style scoped>
-#app-container {
-  font-family: Arial, sans-serif;
+const router = useRouter()
+const { user, token, logout } = useAuth()
+
+const isAuthenticated = computed(() => !!token.value)
+// Dynamic role calculation that respects the ref user object and falls back to storage if needed
+const userRole = computed(() => {
+  if (user.value?.rol) return user.value.rol;
+  if (user.value?.role) return user.value.role;
+  
+  try {
+    const defaultData = JSON.parse(localStorage.getItem('user') || '{}');
+    return defaultData.rol || defaultData.role || null;
+  } catch {
+    return null;
+  }
+})
+
+const handleLogout = () => {
+  logout()
 }
-.menu-principal {
-  background-color: #2c3e50;
-  color: white;
-  padding: 1rem 2rem;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-.menu-principal h1 {
+</script>
+
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+body {
   margin: 0;
-  font-size: 1.5rem;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  background-color: #FAFAFA; 
 }
-.nav-link {
-  color: white;
-  text-decoration: none;
-  font-weight: bold;
-  padding: 10px;
+
+/* Glassmorphism nav */
+.glass-nav {
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05) !important;
 }
-.nav-link:hover {
-  text-decoration: underline;
+
+.max-width-container {
+  max-width: 1400px;
+  margin: 0 auto;
 }
-.contenido-principal {
-  padding: 2rem;
+
+.bg-surface {
+  background-color: #FAFAFA;
+}
+
+/* Page transitions */
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+  transform: translateY(10px);
 }
 </style>

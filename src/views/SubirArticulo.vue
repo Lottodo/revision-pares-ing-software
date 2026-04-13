@@ -1,213 +1,172 @@
 <template>
-  <div class="contenedor-autor">
-    <h2> Subir Nuevo Manuscrito</h2>
-    <p class="instrucciones">Por favor, llena los datos de tu artículo. Solo se admiten archivos PDF (Máx. 5MB).</p>
+  <v-container fluid class="pa-md-8 pa-4 d-flex justify-center flex-grow-1 align-center max-width-container">
+    <v-card class="elevation-4 w-100 rounded-xl overflow-hidden border-card" max-width="700">
+      <v-toolbar color="transparent" flat class="bg-gradient-header px-4">
+        <v-toolbar-title class="text-white font-weight-black text-h5">
+          <v-icon start size="28" class="mr-2">mdi-cloud-upload-outline</v-icon>
+          Subir Manuscrito
+        </v-toolbar-title>
+      </v-toolbar>
 
-    <form @submit.prevent="enviarArticulo" class="formulario">
-      
-      <div class="grupo-input">
-        <label for="titulo">Título del Artículo:</label>
-        <input 
-          type="text" 
-          id="titulo" 
-          v-model="titulo" 
-          required 
-          placeholder="Ej. El impacto de la IA en la educación"
-        />
-      </div>
+      <v-card-text class="pa-md-10 pa-6">
+        <p class="text-body-1 text-grey-darken-2 mb-8 font-weight-medium">
+          Diligencia el formulario de postulación. Asegúrate de que el documento adjunto no contenga firmas ni datos incrustados que vulneren el ciego doble.
+        </p>
 
-      <div class="grupo-input">
-        <label for="resumen">Resumen (Abstract):</label>
-        <textarea 
-          id="resumen" 
-          v-model="resumen" 
-          required 
-          rows="4"
-          placeholder="Escribe un breve resumen de tu investigación..."
-        ></textarea>
-      </div>
+        <v-form @submit.prevent="enviarArticulo" id="upload-form">
+          <v-text-field
+            v-model.trim="titulo"
+            label="Título del Artículo"
+            placeholder="Ej. El impacto de redes bayesianas..."
+            variant="outlined"
+            density="comfortable"
+            class="mb-4 text-body-1"
+            bg-color="grey-lighten-4"
+            required
+            hide-details="auto"
+          ></v-text-field>
 
-      <div class="grupo-input">
-        <label for="archivo">Archivo del Manuscrito (PDF):</label>
-        <input 
-          type="file" 
-          id="archivo" 
-          accept="application/pdf" 
-          @change="manejarArchivo" 
-          required 
-        />
-      </div>
+          <v-textarea
+            v-model.trim="resumen"
+            label="Resumen (Abstract)"
+            placeholder="Introduce los preceptos y metodología clave..."
+            variant="outlined"
+            density="comfortable"
+            rows="5"
+            class="mb-4 text-body-1"
+            bg-color="grey-lighten-4"
+            required
+            hide-details="auto"
+          ></v-textarea>
 
-      <p v-if="mensajeError" class="error">{{ mensajeError }}</p>
-      <p v-if="mensajeExito" class="exito">{{ mensajeExito }}</p>
+          <v-file-input
+            v-model="archivoPdf"
+            label="Archivo del Manuscrito (Solo PDF, Máx 5MB)"
+            accept="application/pdf"
+            variant="outlined"
+            density="comfortable"
+            show-size
+            bg-color="white"
+            prepend-icon=""
+            prepend-inner-icon="mdi-file-pdf-box"
+            class="mb-2 text-body-1"
+            :error-messages="mensajeError"
+            @change="mensajeError = ''"
+            required
+          ></v-file-input>
 
-      <button type="submit" :disabled="cargando">
-        {{ cargando ? 'Subiendo...' : 'Enviar Artículo' }}
-      </button>
+          <!-- Alertas animadas -->
+          <v-slide-y-transition>
+            <div v-if="mensajeError" class="mt-4">
+              <v-alert type="error" variant="tonal" class="rounded-lg font-weight-medium text-body-2" density="compact">
+                {{ mensajeError }}
+              </v-alert>
+            </div>
+          </v-slide-y-transition>
 
-    </form>
-  </div>
+          <v-slide-y-transition>
+            <div v-if="mensajeExito" class="mt-4">
+              <v-alert type="success" variant="tonal" class="rounded-lg font-weight-medium text-green-darken-4 text-body-2" density="compact">
+                {{ mensajeExito }}
+              </v-alert>
+            </div>
+          </v-slide-y-transition>
+
+          <v-btn
+            type="submit"
+            color="green-darken-3"
+            class="font-weight-black mt-8 text-white rounded-pill px-8"
+            size="x-large"
+            block
+            :loading="cargando"
+            elevation="2"
+          >
+            Enviar Postulación
+            <v-icon end size="20" class="ml-2">mdi-send</v-icon>
+          </v-btn>
+        </v-form>
+      </v-card-text>
+    </v-card>
+  </v-container>
 </template>
 
 <script setup>
 import { ref } from 'vue';
 
-// Variables reactivas (Estado del componente)
 const titulo = ref('');
 const resumen = ref('');
-const archivoPdf = ref(null);
+const archivoPdf = ref(null); // Will hold the File object or array of files via Vuetify
 const mensajeError = ref('');
 const mensajeExito = ref('');
 const cargando = ref(false);
 
-// Función que se ejecuta cuando el usuario selecciona un archivo
-const manejarArchivo = (evento) => {
-  const archivo = evento.target.files[0];
-  mensajeError.value = ''; // Limpiar errores previos
-  
-  if (archivo) {
-    // Validación 1: Que sea PDF
-    if (archivo.type !== 'application/pdf') {
-      mensajeError.value = 'El archivo debe ser un PDF.';
-      evento.target.value = ''; // Limpiar el input
-      archivoPdf.value = null;
-      return;
-    }
-    
-    // Validación 2: Tamaño menor a 5MB (5 * 1024 * 1024 bytes)
-    if (archivo.size > 5242880) {
-      mensajeError.value = 'El archivo es muy pesado. Máximo 5MB.';
-      evento.target.value = '';
-      archivoPdf.value = null;
-      return;
-    }
-
-    archivoPdf.value = archivo;
-  }
-};
-
-// Función para enviar los datos al servidor
 const enviarArticulo = async () => {
-  if (!archivoPdf.value || !titulo.value || !resumen.value) {
-    mensajeError.value = "Por favor completa todos los campos.";
+  mensajeError.value = '';
+  mensajeExito.value = '';
+
+  // Vuetify v-file-input stores files in an array or directly if single.
+  const archivo = Array.isArray(archivoPdf.value) ? archivoPdf.value[0] : archivoPdf.value;
+
+  if (!archivo || !titulo.value || !resumen.value) {
+    mensajeError.value = "Por favor completa todos los campos y adjunta un archivo.";
+    return;
+  }
+
+  // Validación 1: Que sea PDF
+  if (archivo.type !== 'application/pdf') {
+    mensajeError.value = 'El archivo debe ser un PDF.';
+    return;
+  }
+  
+  // Validación 2: Tamaño menor a 5MB
+  if (archivo.size > 5242880) {
+    mensajeError.value = 'El archivo es muy pesado. Máximo 5MB.';
+    return;
+  }
+
+  const token = localStorage.getItem('token');
+  if (!token) {
+    mensajeError.value = 'Sesión inválida o expirada. Por favor, inicia sesión de nuevo.';
     return;
   }
 
   cargando.value = true;
-  mensajeError.value = '';
-  mensajeExito.value = '';
 
   try {
-    // 1. Recuperamos el token seguro que guardamos en el login
-    const token = localStorage.getItem('jwt_token');
-
-    if(!token) {
-        mensajeError.value = "No estás autenticado. Por favor inicia sesión.";
-        cargando.value = false;
-        return;
-    }
-
-    // 2. Preparamos los datos (FormData es ideal para enviar archivos + texto)
     const formData = new FormData();
-    // Sanitización básica (Vue ya protege mucho contra XSS al usar v-model, pero quitamos espacios extra)
     formData.append('titulo', titulo.value.trim());
     formData.append('resumen', resumen.value.trim());
-    formData.append('documento', archivoPdf.value);
+    formData.append('documento', archivo);
 
-    // 3. Enviamos al backend (Ajustaremos esta URL cuando tu compañero de Backend termine su parte)
-    const respuesta = await fetch('http://localhost:3000/api/articulos', {
+    // Utilizamos la ruta relativa aprovechando el proxy configurado en vite.config.js
+    const respuesta = await fetch('/api/articulos', {
       method: 'POST',
       headers: {
-        'Authorization': token // ¡Seguridad JWT aplicada!
+        'Authorization': `Bearer ${token}`
       },
       body: formData
     });
 
-    if (respuesta.ok) {
-      mensajeExito.value = "¡Artículo enviado con éxito para su revisión!";
-      // Limpiar formulario
-      titulo.value = '';
-      resumen.value = '';
-      document.getElementById('archivo').value = '';
-      archivoPdf.value = null;
-    } else {
-      const errorData = await respuesta.json();
-      mensajeError.value = errorData.error || "Error al subir el artículo.";
+    const isJson = respuesta.headers.get('content-type')?.includes('application/json');
+    let data = null;
+    
+    if (isJson) {
+        data = await respuesta.json();
     }
 
+    if (respuesta.ok) {
+      mensajeExito.value = '¡Artículo enviado con éxito para su revisión!';
+      titulo.value = '';
+      resumen.value = '';
+      archivoPdf.value = null;
+    } else {
+      mensajeError.value = data?.error || 'Error del servidor al procesar el archivo.';
+    }
   } catch (error) {
-    console.error("Error de conexión:", error);
-    mensajeError.value = "No se pudo conectar con el servidor.";
+    console.error("Error al enviar artículo:", error);
+    mensajeError.value = 'No se pudo conectar con el servidor o el proxy falló.';
   } finally {
     cargando.value = false;
   }
 };
 </script>
-
-<style scoped>
-.contenedor-autor {
-  max-width: 600px;
-  margin: 0 auto;
-  padding: 20px;
-  font-family: Arial, sans-serif;
-  color: #000; /* Asegura que el texto general sea negro */
-}
-
-.instrucciones {
-  color: #333; /* Forzamos gris oscuro para el párrafo de instrucciones */
-}
-
-.formulario {
-  display: flex;
-  flex-direction: column;
-  gap: 15px;
-  background-color: #f9f9f9;
-  padding: 20px;
-  border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-}
-
-.grupo-input {
-  display: flex;
-  flex-direction: column;
-  text-align: left;
-}
-
-.grupo-input label {
-  font-weight: bold;
-  margin-bottom: 5px;
-  color: #000; /* Forzamos color negro para las etiquetas */
-}
-
-.grupo-input input[type="text"],
-.grupo-input textarea {
-  padding: 10px;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  font-size: 1rem;
-  color: #000; /* Asegura que lo que escribe el usuario se vea negro */
-}
-
-button {
-  padding: 12px;
-  background-color: #007bff;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  font-size: 1.1rem;
-  cursor: pointer;
-  transition: background-color 0.3s;
-}
-
-button:hover {
-  background-color: #0056b3;
-}
-
-button:disabled {
-  background-color: #cccccc;
-  cursor: not-allowed;
-}
-
-.error { color: #dc3545; font-weight: bold; }
-.exito { color: #28a745; font-weight: bold; }
-</style>

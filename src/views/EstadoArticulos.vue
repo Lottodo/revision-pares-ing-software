@@ -1,36 +1,69 @@
 <template>
-  <div class="contenedor-estado">
-    <h2>📊 Estado de mis Manuscritos</h2>
-    <p class="instrucciones">Consulta el progreso de las revisiones de tus artículos enviados.</p>
+  <v-container fluid class="pa-md-8 pa-4 max-width-container">
+    <v-card class="elevation-3 w-100 rounded-xl overflow-hidden border-card">
+      <v-toolbar color="transparent" flat class="bg-gradient-header px-4">
+        <v-toolbar-title class="text-white font-weight-black text-h5">
+          <v-icon start size="28" class="mr-2">mdi-text-box-check-outline</v-icon>
+          Estado de tus Manuscritos
+        </v-toolbar-title>
+      </v-toolbar>
 
-    <div v-if="cargando" class="cargando">Cargando información...</div>
+      <v-card-text class="pa-md-8 pa-6">
+        <p class="text-body-1 text-grey-darken-2 mb-8 font-weight-medium">
+          Rastrea el progreso de tus postulaciones. Nuestro staff revisa cada manuscrito bajo la estricta política de doble ciego.
+        </p>
 
-    <table v-else class="tabla-articulos">
-      <thead>
-        <tr>
-          <th>ID</th>
-          <th>Título del Artículo</th>
-          <th>Fecha de Envío</th>
-          <th>Estado Actual</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr v-for="articulo in articulos" :key="articulo.id">
-          <td>#{{ articulo.id }}</td>
-          <td>{{ articulo.titulo }}</td>
-          <td>{{ articulo.fecha }}</td>
-          <td>
-            <span :class="['etiqueta-estado', claseEstado(articulo.estado)]">
-              {{ articulo.estado }}
-            </span>
-          </td>
-        </tr>
-        <tr v-if="articulos.length === 0">
-          <td colspan="4" class="sin-datos">No has enviado ningún artículo todavía.</td>
-        </tr>
-      </tbody>
-    </table>
-  </div>
+        <v-row v-if="cargando">
+          <v-col cols="12" class="d-flex justify-center pa-10">
+            <v-progress-circular indeterminate color="green-darken-3" size="64" width="4"></v-progress-circular>
+          </v-col>
+        </v-row>
+
+        <v-slide-y-transition>
+          <v-alert v-if="mensajeError" type="error" variant="tonal" class="mb-4 rounded-lg font-weight-medium" density="compact">
+            {{ mensajeError }}
+          </v-alert>
+        </v-slide-y-transition>
+
+        <div class="border rounded-xl overflow-hidden">
+          <v-data-table
+            v-if="!cargando && !mensajeError"
+            :headers="encabezados"
+            :items="articulos"
+            class="elevation-0 bg-transparent font-weight-medium"
+            hover
+            density="comfortable"
+          >
+            <template v-slot:item.fecha="{ item }">
+              <span class="text-grey-darken-2 font-weight-bold">{{ item.fecha }}</span>
+            </template>
+            
+            <template v-slot:item.titulo="{ item }">
+              <span class="text-grey-darken-4 font-weight-black">{{ item.titulo }}</span>
+            </template>
+
+            <template v-slot:item.estado="{ item }">
+              <v-chip
+                :color="getColorEstado(item.estado)"
+                variant="flat"
+                class="font-weight-bold text-white shadow-sm"
+                size="small"
+              >
+                {{ item.estado }}
+              </v-chip>
+            </template>
+            
+            <template #no-data>
+              <div class="pa-8 d-flex flex-column align-center justify-center">
+                <v-icon size="64" color="grey-lighten-2" class="mb-4">mdi-file-hidden</v-icon>
+                <div class="text-h6 text-grey-darken-2 font-weight-medium">No has postulado ningún artículo aún.</div>
+              </div>
+            </template>
+          </v-data-table>
+        </div>
+      </v-card-text>
+    </v-card>
+  </v-container>
 </template>
 
 <script setup>
@@ -38,40 +71,52 @@ import { ref, onMounted } from 'vue';
 
 const articulos = ref([]);
 const cargando = ref(true);
+const mensajeError = ref('');
 
-// Función para darle color a la etiqueta según el estado
-const claseEstado = (estado) => {
-  switch (estado) {
-    case 'Recibido': return 'estado-recibido';
-    case 'En Revisión': return 'estado-revision';
-    case 'Aceptado': return 'estado-aceptado';
-    case 'Rechazado': return 'estado-rechazado';
-    default: return 'estado-default';
+const encabezados = [
+  { title: 'Fecha de Envio', align: 'start', key: 'fecha' },
+  { title: 'Título', align: 'start', key: 'titulo' },
+  { title: 'Estado Actual', align: 'start', key: 'estado' },
+];
+
+const getColorEstado = (estado) => {
+  switch (estado?.toLowerCase()) {
+    case 'recibido': return 'grey-lighten-1';
+    case 'pendiente': return 'grey-darken-1';
+    case 'en revisión': return 'blue-darken-2';
+    case 'cambios menores': return 'teal-darken-1';
+    case 'cambios mayores': return 'purple-darken-2';
+    case 'aceptado': return 'green-darken-3';
+    case 'rechazado': return 'red-darken-3';
+    default: return 'black';
   }
 };
 
 onMounted(async () => {
+  cargando.value = true;
+  mensajeError.value = '';
+  
   try {
-    const token = localStorage.getItem('jwt_token');
-    // Intentamos pedir los datos al backend
-    const respuesta = await fetch('http://localhost:3000/api/mis-articulos', {
-      headers: { 'Authorization': token }
+    const token = localStorage.getItem('token');
+    if (!token) {
+      mensajeError.value = 'Sesión expirada. Por favor, inicia sesión de nuevo.';
+      cargando.value = false;
+      return;
+    }
+
+    const respuesta = await fetch('/api/mis-articulos', {
+      headers: { 'Authorization': `Bearer ${token}` }
     });
 
     if (respuesta.ok) {
       const data = await respuesta.json();
       articulos.value = data;
     } else {
-      throw new Error("Backend no listo");
+      mensajeError.value = "Error al cargar la información del servidor.";
     }
   } catch (error) {
-    console.warn("No se pudo conectar al API real. Cargando datos de prueba para la UI.");
-    // Datos de prueba para que la interfaz no se vea vacía en la presentación
-    articulos.value = [
-      { id: 101, titulo: "El impacto de la IA en la educación moderna", fecha: "2026-03-20", estado: "En Revisión" },
-      { id: 98, titulo: "Nuevas metodologías ágiles en 2026", fecha: "2026-03-15", estado: "Aceptado" },
-      { id: 95, titulo: "Uso de Vue 3 en aplicaciones monolíticas", fecha: "2026-03-10", estado: "Recibido" }
-    ];
+    console.error("Error cargando artículos:", error);
+    mensajeError.value = "Hubo un error de conexión con la base de datos.";
   } finally {
     cargando.value = false;
   }
@@ -79,61 +124,31 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.contenedor-estado {
-  max-width: 800px;
-  margin: 0 auto;
-  font-family: Arial, sans-serif;
-  color: #000; /* Asegura color oscuro general para todo el contenedor */
+.bg-gradient-header {
+  background: linear-gradient(135deg, #0f3e2b 0%, #1a5c3a 100%);
 }
 
-.instrucciones {
-  color: #333; /* Forzamos gris oscuro para las instrucciones */
+.border-card {
+  border: 1px solid rgba(0,0,0,0.06);
 }
 
-.cargando {
-  color: #000;
-  font-weight: bold;
-  margin-top: 20px;
+.shadow-sm {
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05) !important;
 }
 
-.tabla-articulos {
-  width: 100%;
-  border-collapse: collapse;
-  margin-top: 20px;
-  background-color: #fff;
-  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+:deep(.v-data-table__th) {
+  text-transform: uppercase;
+  font-size: 0.70rem !important;
+  font-weight: 800 !important;
+  letter-spacing: 0.05em;
+  color: #78909c !important;
+  background-color: transparent !important;
+  border-bottom: 2px solid #eceff1 !important;
 }
-
-.tabla-articulos th, .tabla-articulos td {
-  padding: 12px 15px;
-  text-align: left;
-  border-bottom: 1px solid #ddd;
-  color: #000; /* Forzamos texto negro en toda la tabla */
+:deep(.v-data-table__tr) {
+  transition: background-color 0.2s ease;
 }
-
-.tabla-articulos th {
-  background-color: #f4f4f4;
-  font-weight: bold;
+:deep(.v-data-table__tr:hover) {
+  background-color: #f8fafc !important;
 }
-
-.sin-datos {
-  text-align: center;
-  color: #777;
-  font-style: italic;
-}
-
-/* Estilos de las etiquetas de estado */
-.etiqueta-estado {
-  padding: 5px 10px;
-  border-radius: 20px;
-  font-size: 0.85rem;
-  font-weight: bold;
-  color: white; /* El texto dentro de las "píldoras" de colores se queda blanco para que contraste con el fondo de color */
-}
-
-.estado-recibido { background-color: #6c757d; }
-.estado-revision { background-color: #f39c12; }
-.estado-aceptado { background-color: #28a745; }
-.estado-rechazado { background-color: #dc3545; }
-.estado-default { background-color: #000; }
 </style>
