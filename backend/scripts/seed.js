@@ -1,7 +1,7 @@
 import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
 import dotenv from 'dotenv';
-import Usuario from '../models/usuario.model.js';
+import Usuario from '../models/Usuario.js';
 
 // Si ejecutamos "node backend/scripts/seed.js" desde root, el env está en "backend/.env"
 // Si ejecutamos "node scripts/seed.js" desde "backend/", el env está en "./.env"
@@ -33,19 +33,25 @@ const seedDatabase = async () => {
         username: 'autor1',
         email: 'autor1@uabc.edu.mx',
         passwordHash,
-        rol: 'autor',
+        roles: ['autor'],
       },
       {
         username: 'revisor1',
         email: 'revisor1@uabc.edu.mx',
         passwordHash,
-        rol: 'revisor',
+        roles: ['revisor'],
       },
       {
         username: 'editor1',
         email: 'editor1@uabc.edu.mx',
         passwordHash,
-        rol: 'editor',
+        roles: ['editor'],
+      },
+      {
+        username: 'multiusuario',
+        email: 'multiusuario@uabc.edu.mx',
+        passwordHash,
+        roles: ['autor', 'revisor', 'editor'],
       }
     ];
 
