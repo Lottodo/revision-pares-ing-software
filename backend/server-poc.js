@@ -70,7 +70,7 @@ const veredictoUiToDb = {
 
 // 2. Endpoint: Mis Artículos (Autor)
 app.get('/api/mis-articulos', verificarToken, async (req, res) => {
-    if (req.user.role !== 'autor') return res.status(403).json({ error: "Acceso solo para autores" });
+    if (!req.user.roles || !req.user.roles.includes('autor')) return res.status(403).json({ error: "Acceso solo para autores" });
 
     try {
         const articulos = await Articulo.find({ autorId: req.user.id })
@@ -92,7 +92,7 @@ app.get('/api/mis-articulos', verificarToken, async (req, res) => {
 
 // 3. Endpoint: Subir Artículo (Autor)
 app.post('/api/articulos', verificarToken, upload.single('documento'), async (req, res) => {
-    if (req.user.role !== 'autor') return res.status(403).json({ error: "Acceso solo para autores" });
+    if (!req.user.roles || !req.user.roles.includes('autor')) return res.status(403).json({ error: "Acceso solo para autores" });
 
     try {
         const { titulo, resumen } = req.body;
@@ -124,7 +124,7 @@ app.post('/api/articulos', verificarToken, upload.single('documento'), async (re
 
 // 4. Endpoint (TAREA 2317): Acceder a Artículos Asignados (Revisor)
 app.get('/api/articulos-asignados', verificarToken, async (req, res) => {
-    if (req.user.role !== 'revisor') return res.status(403).json({ error: "Acceso solo para revisores" });
+    if (!req.user.roles || !req.user.roles.includes('revisor')) return res.status(403).json({ error: "Acceso solo para revisores" });
 
     try {
         const asignaciones = await AsignacionRevision.find({ revisorId: req.user.id })
@@ -147,7 +147,7 @@ app.get('/api/articulos-asignados', verificarToken, async (req, res) => {
 
 // N1. Endpoint: Ver TODOS los artículos (Editor)
 app.get('/api/articulos', verificarToken, async (req, res) => {
-    if (req.user.role !== 'editor') return res.status(403).json({ error: "Acceso solo para editores" });
+    if (!req.user.roles || !req.user.roles.includes('editor')) return res.status(403).json({ error: "Acceso solo para editores" });
 
     try {
         const articulos = await Articulo.find().sort({ createdAt: -1 });
@@ -179,10 +179,11 @@ app.get('/api/articulos', verificarToken, async (req, res) => {
 
 // N2. Endpoint: Obtener lista de Revisores disponibles (Editor)
 app.get('/api/revisores', verificarToken, async (req, res) => {
-    if (req.user.role !== 'editor') return res.status(403).json({ error: "Acceso solo para editores" });
+    if (!req.user.roles || !req.user.roles.includes('editor')) return res.status(403).json({ error: "Acceso solo para editores" });
 
     try {
-        const revisores = await Usuario.find({ rol: 'revisor', activo: true }).select('username _id');
+        // En un esquema híbrido, cualquier usuario activo (incluyendo 'autor') es candidato potencial para ser promovido a revisor de forma automática.
+        const revisores = await Usuario.find({ activo: true }).select('username _id roles');
         
         const resultado = await Promise.all(revisores.map(async (rev) => {
             const cargaAgregada = await AsignacionRevision.countDocuments({ revisorId: rev._id, estado: { $in: ['pendiente', 'en_progreso'] } });
@@ -202,7 +203,7 @@ app.get('/api/revisores', verificarToken, async (req, res) => {
 
 // N3. Endpoint: Asignar un revisor a un artículo (Editor)
 app.post('/api/asignaciones', verificarToken, async (req, res) => {
-    if (req.user.role !== 'editor') return res.status(403).json({ error: "Acceso solo para editores" });
+    if (!req.user.roles || !req.user.roles.includes('editor')) return res.status(403).json({ error: "Acceso solo para editores" });
 
     try {
         const { articuloId, revisorId } = req.body;
@@ -213,6 +214,13 @@ app.post('/api/asignaciones', verificarToken, async (req, res) => {
 
         const asignacion = new AsignacionRevision({ articuloId, revisorId, estado: 'pendiente' });
         await asignacion.save();
+
+        // LÓGICA AUTOMÁTICA HYBRIDA: Si el asignado no tiene rol 'revisor', otorgárselo como consecuencia de la asignación.
+        const usuarioRevisor = await Usuario.findById(revisorId);
+        if (usuarioRevisor && !usuarioRevisor.roles.includes('revisor')) {
+            usuarioRevisor.roles.push('revisor');
+            await usuarioRevisor.save();
+        }
 
         // Si tiene al menos 2 revisores, pasar a en_revision
         const cuentaRevisores = await AsignacionRevision.countDocuments({ articuloId, estado: { $ne: 'cancelado'} });
@@ -229,7 +237,7 @@ app.post('/api/asignaciones', verificarToken, async (req, res) => {
 
 // N4. Endpoint: Quitar Asignacion (Editor)
 app.delete('/api/asignaciones', verificarToken, async (req, res) => {
-    if (req.user.role !== 'editor') return res.status(403).json({ error: "Acceso solo para editores" });
+    if (!req.user.roles || !req.user.roles.includes('editor')) return res.status(403).json({ error: "Acceso solo para editores" });
 
     try {
         const { articuloId, revisorId } = req.body;
@@ -245,7 +253,7 @@ app.delete('/api/asignaciones', verificarToken, async (req, res) => {
 
 // N5. Endpoint: Decidir status final articulo (Editor)
 app.put('/api/articulos/:id/estado', verificarToken, async (req, res) => {
-    if (req.user.role !== 'editor') return res.status(403).json({ error: "Acceso solo para editores" });
+    if (!req.user.roles || !req.user.roles.includes('editor')) return res.status(403).json({ error: "Acceso solo para editores" });
 
     try {
         const { id } = req.params;
@@ -261,9 +269,45 @@ app.put('/api/articulos/:id/estado', verificarToken, async (req, res) => {
     }
 });
 
+// N6. Endpoint: Modificar roles manualmente (Editor)
+app.put('/api/usuarios/:id/roles', verificarToken, async (req, res) => {
+    if (!req.user.roles || !req.user.roles.includes('editor')) return res.status(403).json({ error: "Acceso solo para editores" });
+
+    try {
+        const { id } = req.params;
+        const { roles } = req.body;
+        
+        if (!Array.isArray(roles) || roles.length === 0) {
+            return res.status(400).json({ error: 'Debes proveer un arreglo válido de roles.' });
+        }
+
+        const usuarioActualizado = await Usuario.findByIdAndUpdate(id, { roles }, { new: true });
+        if (!usuarioActualizado) {
+            return res.status(404).json({ error: 'Usuario no encontrado.' });
+        }
+
+        return res.status(200).json({ mensaje: 'Roles actualizados exitosamente.', roles: usuarioActualizado.roles });
+    } catch (error) {
+        console.error('Error al editar roles:', error);
+        return res.status(500).json({ error: 'Error interno de decision.' });
+    }
+});
+
+// N7. Endpoint: Listar todos los usuarios para gestión (Editor)
+app.get('/api/usuarios', verificarToken, async (req, res) => {
+    if (!req.user.roles || !req.user.roles.includes('editor')) return res.status(403).json({ error: "Acceso solo para editores" });
+    try {
+        const usuarios = await Usuario.find({ activo: true }).select('username email roles createdAt');
+        return res.json(usuarios);
+    } catch (error) {
+        console.error('Error obteniendo usuarios:', error);
+        return res.status(500).json({ error: 'Error interno.' });
+    }
+});
+
 // 5. Endpoint (TAREA 2313): Enviar Evaluación de Artículo (Revisor)
 app.post('/api/evaluar', verificarToken, async (req, res) => {
-    if (req.user.role !== 'revisor') return res.status(403).json({ error: "Acceso solo para revisores" });
+    if (!req.user.roles || !req.user.roles.includes('revisor')) return res.status(403).json({ error: "Acceso solo para revisores" });
     try {
         const { articuloId, veredicto, comentarios } = req.body;
         const veredictoDb = veredictoUiToDb[veredicto] || String(veredicto || '').toLowerCase().replace(/\s+/g, '_');

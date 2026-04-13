@@ -2,7 +2,7 @@
 import { Router } from 'express';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
-import Usuario from '../models/usuario.model.js';
+import Usuario from '../models/Usuario.js';
 
 const router = Router();
 
@@ -40,7 +40,7 @@ const validateLoginInput = ({ username, password }) => {
 // ─── POST /api/auth/register ────────────────────────────────
 router.post('/register', async (req, res) => {
   try {
-    const { username, email, password, rol } = req.body;
+    const { username, email, password, roles } = req.body;
 
     // Validar inputs
     const errors = validateRegisterInput({ username, email, password });
@@ -66,8 +66,7 @@ router.post('/register', async (req, res) => {
     const nuevoUsuario = new Usuario({
       username: username.trim(),
       email: email.trim().toLowerCase(),
-      passwordHash,
-      rol: rol || 'autor'
+      roles: rol || roles || ['autor']
     });
     
     await nuevoUsuario.save();
@@ -76,7 +75,7 @@ router.post('/register', async (req, res) => {
       id: nuevoUsuario._id,
       username: nuevoUsuario.username,
       email: nuevoUsuario.email,
-      rol: nuevoUsuario.rol
+      roles: nuevoUsuario.roles
     }, 201);
   } catch (error) {
     console.error('Error en registro:', error);
@@ -110,7 +109,7 @@ router.post('/login', async (req, res) => {
 
     // Generar JWT
     const token = jwt.sign(
-      { id: usuario._id, username: usuario.username, role: usuario.rol },
+      { id: usuario._id, username: usuario.username, roles: usuario.roles },
       JWT_SECRET(),
       { expiresIn: '24h' }
     );
@@ -121,7 +120,7 @@ router.post('/login', async (req, res) => {
         id: usuario._id,
         username: usuario.username,
         email: usuario.email,
-        rol: usuario.rol
+        roles: usuario.roles
       }
     });
   } catch (error) {
@@ -165,7 +164,7 @@ router.get('/me', async (req, res) => {
       id: usuario._id,
       username: usuario.username,
       email: usuario.email,
-      rol: usuario.rol
+      roles: usuario.roles
     });
   } catch (error) {
     console.error('Error en /me:', error);
