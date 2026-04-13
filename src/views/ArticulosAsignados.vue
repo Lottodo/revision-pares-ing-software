@@ -178,6 +178,19 @@ onMounted(async () => {
     cargando.value = false;
   }
 });
+
+/*onMounted(() => {
+  // PRUEBA DEFINITIVA: Ignoramos al backend por un momento
+  // e inyectamos el artículo directamente en la tabla.
+  
+  articulos.value = [{
+    id: 999,
+    titulo: "El impacto de la Inteligencia Artificial (Prueba Definitiva)",
+    estado: "Pendiente"
+  }];
+  
+  cargando.value = false;
+});*/
 </script>
 
 <style scoped>
