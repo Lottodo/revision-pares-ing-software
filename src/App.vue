@@ -7,25 +7,27 @@
       
       <v-spacer></v-spacer>
 
-      <div class="d-flex align-center mr-4 gap-2">
-        <template v-if="userRoles.includes('autor')">
-          <v-btn variant="text" prepend-icon="mdi-upload" to="/subir-articulo" class="text-grey-darken-3 font-weight-medium rounded-pill me-1" active-class="bg-grey-lighten-4 text-green-darken-4">Subir Artículo</v-btn>
-          <v-btn variant="text" prepend-icon="mdi-format-list-checks" to="/estado-articulos" class="text-grey-darken-3 font-weight-medium rounded-pill me-1" active-class="bg-grey-lighten-4 text-green-darken-4">Tus Manuscritos</v-btn>
-        </template>
+      <div class="nav-scroll-container d-flex align-center mr-4">
+        <div class="d-flex align-center gap-2 px-2">
+          <template v-if="userRoles.includes('autor')">
+            <v-btn variant="text" prepend-icon="mdi-upload" to="/subir-articulo" class="text-grey-darken-3 font-weight-medium rounded-pill me-1" active-class="bg-grey-lighten-4 text-green-darken-4">Subir Artículo</v-btn>
+            <v-btn variant="text" prepend-icon="mdi-format-list-checks" to="/estado-articulos" class="text-grey-darken-3 font-weight-medium rounded-pill me-1" active-class="bg-grey-lighten-4 text-green-darken-4">Tus Manuscritos</v-btn>
+          </template>
 
-        <template v-if="userRoles.includes('revisor')">
-          <v-btn variant="text" prepend-icon="mdi-text-box-search-outline" to="/articulos-asignados" class="text-grey-darken-3 font-weight-medium rounded-pill me-1" active-class="bg-grey-lighten-4 text-green-darken-4">Tareas Revisor</v-btn>
-        </template>
+          <template v-if="userRoles.includes('revisor')">
+            <v-btn variant="text" prepend-icon="mdi-text-box-search-outline" to="/articulos-asignados" class="text-grey-darken-3 font-weight-medium rounded-pill me-1" active-class="bg-grey-lighten-4 text-green-darken-4">Tareas Revisor</v-btn>
+          </template>
 
-        <template v-if="userRoles.includes('editor')">
-          <v-btn variant="text" prepend-icon="mdi-view-dashboard-outline" to="/editor" class="text-grey-darken-3 font-weight-medium rounded-pill me-1" active-class="bg-grey-lighten-4 text-green-darken-4">Panel Editor</v-btn>
-        </template>
+          <template v-if="userRoles.includes('editor')">
+            <v-btn variant="text" prepend-icon="mdi-view-dashboard-outline" to="/editor" class="text-grey-darken-3 font-weight-medium rounded-pill me-1" active-class="bg-grey-lighten-4 text-green-darken-4">Panel Editor</v-btn>
+          </template>
 
-        <template v-if="userRoles.includes('administrador')">
-          <v-btn variant="text" prepend-icon="mdi-shield-crown-outline" to="/admin" class="text-grey-darken-3 font-weight-medium rounded-pill me-1" active-class="bg-grey-lighten-4 text-deep-purple-darken-2">Admin</v-btn>
-        </template>
+          <template v-if="userRoles.includes('administrador')">
+            <v-btn variant="text" prepend-icon="mdi-shield-crown-outline" to="/admin" class="text-grey-darken-3 font-weight-medium rounded-pill me-1" active-class="bg-grey-lighten-4 text-deep-purple-darken-2">Admin</v-btn>
+          </template>
 
-        <v-btn variant="flat" color="blue-grey-darken-4" class="rounded-pill font-weight-bold px-6 ml-2 shadow-sm" prepend-icon="mdi-logout" @click="handleLogout">Salir</v-btn>
+          <v-btn variant="flat" color="blue-grey-darken-4" class="rounded-pill font-weight-bold px-6 ml-2 shadow-sm" prepend-icon="mdi-logout" @click="handleLogout">Salir</v-btn>
+        </div>
       </div>
     </v-app-bar>
 
@@ -99,6 +101,25 @@ body {
 
 .bg-surface {
   background-color: #FAFAFA;
+}
+
+/* Nav scrolling for mobile */
+.nav-scroll-container {
+  max-width: calc(100vw - 180px); /* Deja espacio para el título */
+  overflow-x: auto;
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE/Edge */
+  mask-image: linear-gradient(to right, black 85%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to right, black 85%, transparent 100%);
+}
+
+.nav-scroll-container::-webkit-scrollbar {
+  display: none; /* Chrome/Safari */
+}
+
+.nav-scroll-container > div {
+  white-space: nowrap;
+  flex-wrap: nowrap;
 }
 
 /* Page transitions */
