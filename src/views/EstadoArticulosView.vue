@@ -10,7 +10,7 @@
 
       <v-card-text class="pa-md-8 pa-6 bg-white">
         <p class="text-body-1 text-grey-darken-2 mb-8 font-weight-medium">
-          Rastrea el progreso de tus postulaciones. Nuestro staff revisa cada manuscrito bajo la estricta política de doble ciego.
+          Rastrea el progreso de tus postulaciones. Haz clic en un artículo para ver su línea de vida cronológica.
         </p>
 
         <v-row v-if="cargando">
@@ -52,6 +52,32 @@
                 {{ item.estado }}
               </v-chip>
             </template>
+
+            <template v-slot:item.acciones="{ item }">
+              <div class="d-flex gap-2">
+                <v-btn
+                  size="small"
+                  variant="tonal"
+                  color="blue-darken-2"
+                  class="font-weight-bold rounded-pill px-3"
+                  @click="verTimeline(item)"
+                >
+                  <v-icon start size="16">mdi-timeline-clock-outline</v-icon>
+                  Historial
+                </v-btn>
+                <v-btn
+                  v-if="item.estado === 'Cambios Menores' || item.estado === 'Cambios Mayores'"
+                  size="small"
+                  variant="flat"
+                  color="orange-darken-2"
+                  class="font-weight-bold text-white rounded-pill px-3"
+                  @click="abrirResubir(item)"
+                >
+                  <v-icon start size="16">mdi-file-upload-outline</v-icon>
+                  Subir V{{ (item.versiones?.length || 1) + 1 }}
+                </v-btn>
+              </div>
+            </template>
             
             <template #no-data>
               <div class="pa-8 d-flex flex-column align-center justify-center">
@@ -63,6 +89,85 @@
         </div>
       </v-card-text>
     </v-card>
+
+    <!-- ══════════ Dialog: Timeline / Historial ══════════ -->
+    <v-dialog v-model="mostrarTimeline" max-width="650" transition="dialog-bottom-transition">
+      <v-card class="rounded-xl overflow-hidden elevation-10 border-card">
+        <v-toolbar color="white" flat class="border-b">
+          <v-toolbar-title class="text-grey-darken-4 font-weight-black text-h6">
+            <v-icon start color="blue-darken-2" class="mr-1">mdi-timeline-clock-outline</v-icon>
+            Línea de Vida: {{ articuloTimeline?.titulo }}
+          </v-toolbar-title>
+          <v-spacer></v-spacer>
+          <v-btn icon="mdi-close" variant="text" color="grey-darken-2" @click="mostrarTimeline = false"></v-btn>
+        </v-toolbar>
+        <v-card-text class="pa-6">
+          <v-row v-if="cargandoTimeline">
+            <v-col cols="12" class="d-flex justify-center pa-6">
+              <v-progress-circular indeterminate color="blue-darken-2" size="40" width="3"></v-progress-circular>
+            </v-col>
+          </v-row>
+
+          <div v-else-if="historial.length === 0" class="text-center pa-6">
+            <v-icon size="48" color="grey-lighten-2" class="mb-3">mdi-history</v-icon>
+            <p class="text-grey-darken-1 font-weight-medium">Sin eventos registrados aún.</p>
+          </div>
+
+          <v-timeline v-else density="compact" side="end" line-color="blue-lighten-4">
+            <v-timeline-item
+              v-for="(evento, idx) in historial"
+              :key="idx"
+              :dot-color="getTimelineDotColor(evento.evento)"
+              size="small"
+            >
+              <div class="mb-1">
+                <span class="font-weight-bold text-grey-darken-4 text-body-2">{{ evento.evento }}</span>
+              </div>
+              <div v-if="evento.detalle" class="text-caption text-grey-darken-1 mb-1">{{ evento.detalle }}</div>
+              <div class="text-caption text-grey-lighten-1 font-weight-medium">
+                {{ formatFecha(evento.fecha) }}
+              </div>
+            </v-timeline-item>
+          </v-timeline>
+        </v-card-text>
+      </v-card>
+    </v-dialog>
+
+    <!-- ══════════ Dialog: Re-subir versión ══════════ -->
+    <v-dialog v-model="mostrarResubir" max-width="550" persistent>
+      <v-card class="rounded-xl overflow-hidden elevation-10 border-card">
+        <v-toolbar color="white" flat class="border-b">
+          <v-toolbar-title class="text-grey-darken-4 font-weight-black text-h6">
+            Subir versión corregida
+          </v-toolbar-title>
+          <v-spacer></v-spacer>
+          <v-btn icon="mdi-close" variant="text" color="grey-darken-2" @click="mostrarResubir = false" :disabled="subiendoVersion"></v-btn>
+        </v-toolbar>
+        <v-card-text class="pa-6">
+          <v-alert type="info" variant="tonal" class="mb-4 rounded-lg font-weight-medium" density="compact">
+            Tu manuscrito "<strong>{{ articuloResubir?.titulo }}</strong>" requiere correcciones. Sube la nueva versión aquí.
+          </v-alert>
+          <v-file-input
+            v-model="archivoNuevaVersion"
+            label="Archivo Corregido (PDF, Máx 5MB)"
+            accept="application/pdf"
+            variant="outlined"
+            density="comfortable"
+            show-size
+            prepend-icon=""
+            prepend-inner-icon="mdi-file-pdf-box"
+            class="mb-2"
+          ></v-file-input>
+          <v-alert v-if="errorResubir" type="error" variant="tonal" class="mb-2 rounded-lg font-weight-medium" density="compact">{{ errorResubir }}</v-alert>
+          <v-alert v-if="exitoResubir" type="success" variant="tonal" class="mb-2 rounded-lg font-weight-medium" density="compact">{{ exitoResubir }}</v-alert>
+        </v-card-text>
+        <v-card-actions class="pa-4 pt-0 bg-grey-lighten-5">
+          <v-spacer></v-spacer>
+          <v-btn color="grey-darken-2" variant="text" class="font-weight-bold rounded-pill px-6" @click="mostrarResubir = false" :disabled="subiendoVersion">Cancelar</v-btn>
+          <v-btn color="orange-darken-2" variant="flat" class="font-weight-bold text-white rounded-pill px-6" :loading="subiendoVersion" @click="subirNuevaVersion">Subir Corrección</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
   </v-container>
 </template>
 
@@ -73,10 +178,25 @@ const articulos = ref([]);
 const cargando = ref(true);
 const mensajeError = ref('');
 
+// Timeline
+const mostrarTimeline = ref(false);
+const cargandoTimeline = ref(false);
+const articuloTimeline = ref(null);
+const historial = ref([]);
+
+// Re-subir versión
+const mostrarResubir = ref(false);
+const articuloResubir = ref(null);
+const archivoNuevaVersion = ref(null);
+const subiendoVersion = ref(false);
+const errorResubir = ref('');
+const exitoResubir = ref('');
+
 const encabezados = [
   { title: 'Fecha de Envio', align: 'start', key: 'fecha' },
   { title: 'Título', align: 'start', key: 'titulo' },
   { title: 'Estado Actual', align: 'start', key: 'estado' },
+  { title: 'Acciones', align: 'center', key: 'acciones', sortable: false },
 ];
 
 const getColorEstado = (estado) => {
@@ -92,25 +212,31 @@ const getColorEstado = (estado) => {
   }
 };
 
-onMounted(async () => {
+const getTimelineDotColor = (evento) => {
+  if (evento.includes('recibido') || evento.includes('Recibido')) return 'blue-darken-2';
+  if (evento.includes('asignado') || evento.includes('Asignado')) return 'teal-darken-1';
+  if (evento.includes('Dictamen') || evento.includes('emitido')) return 'orange-darken-2';
+  if (evento.includes('Aceptado')) return 'green-darken-3';
+  if (evento.includes('Rechazado')) return 'red-darken-3';
+  if (evento.includes('versión') || evento.includes('Versión')) return 'purple-darken-2';
+  return 'grey-darken-1';
+};
+
+const formatFecha = (fechaStr) => {
+  try {
+    return new Date(fechaStr).toLocaleString('es-MX', { dateStyle: 'medium', timeStyle: 'short' });
+  } catch { return fechaStr; }
+};
+
+const cargarArticulos = async () => {
   cargando.value = true;
   mensajeError.value = '';
-  
   try {
     const token = localStorage.getItem('token');
-    if (!token) {
-      mensajeError.value = 'Sesión expirada. Por favor, inicia sesión de nuevo.';
-      cargando.value = false;
-      return;
-    }
-
-    const respuesta = await fetch('/api/mis-articulos', {
-      headers: { 'Authorization': `Bearer ${token}` }
-    });
-
+    if (!token) { mensajeError.value = 'Sesión expirada.'; cargando.value = false; return; }
+    const respuesta = await fetch('/api/mis-articulos', { headers: { 'Authorization': `Bearer ${token}` } });
     if (respuesta.ok) {
-      const data = await respuesta.json();
-      articulos.value = data;
+      articulos.value = await respuesta.json();
     } else {
       mensajeError.value = "Error al cargar la información del servidor.";
     }
@@ -120,6 +246,73 @@ onMounted(async () => {
   } finally {
     cargando.value = false;
   }
+};
+
+const verTimeline = async (articulo) => {
+  articuloTimeline.value = articulo;
+  historial.value = [];
+  mostrarTimeline.value = true;
+  cargandoTimeline.value = true;
+
+  try {
+    const token = localStorage.getItem('token');
+    const res = await fetch(`/api/articulos/${articulo.id}/historial`, { headers: { 'Authorization': `Bearer ${token}` } });
+    if (res.ok) {
+      historial.value = await res.json();
+    }
+  } catch (e) {
+    console.error('Error cargando historial:', e);
+  } finally {
+    cargandoTimeline.value = false;
+  }
+};
+
+const abrirResubir = (articulo) => {
+  articuloResubir.value = articulo;
+  archivoNuevaVersion.value = null;
+  errorResubir.value = '';
+  exitoResubir.value = '';
+  mostrarResubir.value = true;
+};
+
+const subirNuevaVersion = async () => {
+  errorResubir.value = '';
+  exitoResubir.value = '';
+  const archivo = Array.isArray(archivoNuevaVersion.value) ? archivoNuevaVersion.value[0] : archivoNuevaVersion.value;
+
+  if (!archivo) { errorResubir.value = 'Selecciona un archivo PDF.'; return; }
+  if (archivo.type !== 'application/pdf') { errorResubir.value = 'Solo se aceptan PDFs.'; return; }
+  if (archivo.size > 5242880) { errorResubir.value = 'Máximo 5MB.'; return; }
+
+  subiendoVersion.value = true;
+  try {
+    const token = localStorage.getItem('token');
+    const formData = new FormData();
+    formData.append('documento', archivo);
+
+    const res = await fetch(`/api/articulos/${articuloResubir.value.id}/versiones`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}` },
+      body: formData
+    });
+
+    const data = await res.json();
+    if (res.ok) {
+      exitoResubir.value = data.mensaje || '¡Versión subida con éxito!';
+      await cargarArticulos();
+      setTimeout(() => { mostrarResubir.value = false; }, 1500);
+    } else {
+      errorResubir.value = data.error || 'Error al subir la versión.';
+    }
+  } catch (e) {
+    errorResubir.value = 'Fallo de conexión.';
+  } finally {
+    subiendoVersion.value = false;
+  }
+};
+
+onMounted(() => {
+  cargarArticulos();
 });
 </script>
 

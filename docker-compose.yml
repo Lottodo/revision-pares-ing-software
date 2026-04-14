@@ -1,4 +1,3 @@
-version: '3.8'
 
 services:
   backend:
@@ -10,20 +9,10 @@ services:
       - .:/usr/src/app
       - /usr/src/app/node_modules
     command: npm run start:backend
+    env_file:
+      - ./backend/.env
     environment:
       - PORT=3000
-      - MONGO_URI=mongodb://mongo:27017/RevisionPares
-    depends_on:
-      - mongo
-
-
-  mongo:
-    image: mongo:latest
-    container_name: peer_review_mongo
-    ports:
-      - "27017:27017"
-    volumes:
-      - mongo_data:/data/db
 
   frontend:
     build: .

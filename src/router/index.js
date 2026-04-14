@@ -4,6 +4,7 @@ import SubirArticulo from '../views/SubirArticuloView.vue'
 import EstadoArticulos from '../views/EstadoArticulosView.vue'
 import ArticulosAsignados from '../views/ArticulosAsignadosView.vue'
 import EditorDashboard from '../views/PanelEditorView.vue'
+import AdminDashboard from '../views/AdminDashboardView.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -41,6 +42,12 @@ const router = createRouter({
       name: 'editor',
       component: EditorDashboard,
       meta: { requiresAuth: true }
+    },
+    {
+      path: '/admin',
+      name: 'admin',
+      component: AdminDashboard,
+      meta: { requiresAuth: true }
     }
   ]
 })
@@ -57,10 +64,11 @@ router.beforeEach((to, from, next) => {
   // Si la ruta es de guest (login) y ya hay token -> dashboard
   if (to.meta.guest && token) {
     const user = JSON.parse(localStorage.getItem('user') || '{}')
-    const rol = user.rol
+    const roles = user.roles || (user.rol ? [user.rol] : [])
 
-    if (rol === 'editor') return next('/editor')
-    if (rol === 'revisor') return next('/articulos-asignados')
+    if (roles.includes('administrador')) return next('/admin')
+    if (roles.includes('editor')) return next('/editor')
+    if (roles.includes('revisor')) return next('/articulos-asignados')
     return next('/subir-articulo')
   }
 

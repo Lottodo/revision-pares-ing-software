@@ -30,6 +30,12 @@ const seedDatabase = async () => {
 
     const usuariosPrueba = [
       {
+        username: 'admin',
+        email: 'admin@uabc.edu.mx',
+        passwordHash,
+        roles: ['administrador'],
+      },
+      {
         username: 'autor1',
         email: 'autor1@uabc.edu.mx',
         passwordHash,
@@ -38,6 +44,12 @@ const seedDatabase = async () => {
       {
         username: 'revisor1',
         email: 'revisor1@uabc.edu.mx',
+        passwordHash,
+        roles: ['revisor'],
+      },
+      {
+        username: 'revisor2',
+        email: 'revisor2@uabc.edu.mx',
         passwordHash,
         roles: ['revisor'],
       },
@@ -56,7 +68,7 @@ const seedDatabase = async () => {
     ];
 
     await Usuario.insertMany(usuariosPrueba);
-    console.log('[Seed] Usuarios insertados exitosamente (sin el admin).');
+    console.log('[Seed] Usuarios insertados correctamente (incluyendo admin y revisor2).');
 
     process.exit(0);
   } catch (error) {

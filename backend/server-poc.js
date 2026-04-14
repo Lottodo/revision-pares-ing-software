@@ -8,7 +8,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import dotenv from 'dotenv';
-import { connectDB, Usuario, Articulo, AsignacionRevision, Evaluacion } from './models/index.js';
+import { connectDB, Usuario, Articulo, AsignacionRevision, Evaluacion, HistorialArticulo } from './models/index.js';
 import authRoutes from './routes/auth.js';
 import { verificarToken } from './middleware/auth.js';
 
@@ -43,6 +43,17 @@ dotenv.config({ path: __envPath });
 // ─── Montar rutas de autenticación ───────────────────
 app.use('/api/auth', authRoutes);
 
+// ═══════════════════════════════════════════════════════
+// Helper: Registrar evento en el historial de un artículo
+// ═══════════════════════════════════════════════════════
+const registrarHistorial = async (articuloId, evento, detalle = '', usuarioId = null) => {
+    try {
+        await new HistorialArticulo({ articuloId, evento, detalle, usuarioId }).save();
+    } catch (e) {
+        console.error('[Historial] Error registrando evento:', e.message);
+    }
+};
+
 // Helper objects UI to DB
 const estadoArticuloDbToUi = {
     recibido: 'Recibido',
@@ -68,7 +79,11 @@ const veredictoUiToDb = {
 };
 
 
-// 2. Endpoint: Mis Artículos (Autor)
+// ═══════════════════════════════════════════════════════
+// ENDPOINTS DE AUTOR
+// ═══════════════════════════════════════════════════════
+
+// 1. Mis Artículos (Autor)
 app.get('/api/mis-articulos', verificarToken, async (req, res) => {
     if (!req.user.roles || !req.user.roles.includes('autor')) return res.status(403).json({ error: "Acceso solo para autores" });
 
@@ -80,7 +95,9 @@ app.get('/api/mis-articulos', verificarToken, async (req, res) => {
             id: articulo._id,
             titulo: articulo.titulo,
             fecha: new Date(articulo.createdAt).toISOString().split('T')[0],
-            estado: estadoArticuloDbToUi[articulo.estado] || articulo.estado
+            estado: estadoArticuloDbToUi[articulo.estado] || articulo.estado,
+            versiones: articulo.versiones || [],
+            documentoUrl: articulo.documentoUrl,
         }));
 
         return res.json(resultado);
@@ -90,7 +107,7 @@ app.get('/api/mis-articulos', verificarToken, async (req, res) => {
     }
 });
 
-// 3. Endpoint: Subir Artículo (Autor)
+// 2. Subir Artículo (Autor) — Versión 1
 app.post('/api/articulos', verificarToken, upload.single('documento'), async (req, res) => {
     if (!req.user.roles || !req.user.roles.includes('autor')) return res.status(403).json({ error: "Acceso solo para autores" });
 
@@ -102,15 +119,19 @@ app.post('/api/articulos', verificarToken, upload.single('documento'), async (re
             return res.status(400).json({ error: 'Faltan datos requeridos o archivo PDF.' });
         }
 
+        const urlArchivo = `/uploads/${archivo.filename}`;
+
         const nuevoArticulo = new Articulo({
             titulo: String(titulo).trim(),
             resumen: String(resumen).trim(),
-            documentoUrl: `/uploads/${archivo.filename}`,
+            documentoUrl: urlArchivo,
+            versiones: [{ numero: 1, url: urlArchivo, fecha: new Date() }],
             estado: 'recibido',
             autorId: req.user.id
         });
         
         await nuevoArticulo.save();
+        await registrarHistorial(nuevoArticulo._id, 'Manuscrito recibido', `V1 subida por el autor.`, req.user.id);
 
         return res.status(201).json({
             mensaje: 'Articulo creado con exito.',
@@ -122,7 +143,51 @@ app.post('/api/articulos', verificarToken, upload.single('documento'), async (re
     }
 });
 
-// 4. Endpoint (TAREA 2317): Acceder a Artículos Asignados (Revisor)
+// 3. Subir nueva versión de un artículo (Autor) — V2, V3...
+app.post('/api/articulos/:id/versiones', verificarToken, upload.single('documento'), async (req, res) => {
+    if (!req.user.roles || !req.user.roles.includes('autor')) return res.status(403).json({ error: "Acceso solo para autores" });
+
+    try {
+        const { id } = req.params;
+        const archivo = req.file;
+        if (!archivo) return res.status(400).json({ error: 'Falta el archivo PDF.' });
+
+        const articulo = await Articulo.findById(id);
+        if (!articulo) return res.status(404).json({ error: 'Artículo no encontrado.' });
+
+        // Solo el autor original puede subir una nueva versión
+        if (String(articulo.autorId) !== String(req.user.id)) {
+            return res.status(403).json({ error: 'No eres el autor de este artículo.' });
+        }
+
+        // Solo se permite re-subir si el estado es cambios_menores o cambios_mayores
+        if (!['cambios_menores', 'cambios_mayores'].includes(articulo.estado)) {
+            return res.status(400).json({ error: 'Solo puedes subir una nueva versión cuando el artículo requiere correcciones.' });
+        }
+
+        const urlArchivo = `/uploads/${archivo.filename}`;
+        const nuevoNumero = (articulo.versiones?.length || 0) + 1;
+
+        articulo.versiones.push({ numero: nuevoNumero, url: urlArchivo, fecha: new Date() });
+        articulo.documentoUrl = urlArchivo;
+        articulo.estado = 'recibido'; // Regresa al inicio del ciclo
+        await articulo.save();
+
+        await registrarHistorial(articulo._id, `Nueva versión subida (V${nuevoNumero})`, `El autor subió una versión corregida.`, req.user.id);
+
+        return res.json({ mensaje: `Versión ${nuevoNumero} subida con éxito. El artículo regresa a revisión.` });
+    } catch (error) {
+        console.error('Error subiendo nueva versión:', error);
+        return res.status(500).json({ error: 'Error interno.' });
+    }
+});
+
+
+// ═══════════════════════════════════════════════════════
+// ENDPOINTS DE REVISOR
+// ═══════════════════════════════════════════════════════
+
+// 4. Artículos Asignados (Revisor)
 app.get('/api/articulos-asignados', verificarToken, async (req, res) => {
     if (!req.user.roles || !req.user.roles.includes('revisor')) return res.status(403).json({ error: "Acceso solo para revisores" });
 
@@ -134,6 +199,7 @@ app.get('/api/articulos-asignados', verificarToken, async (req, res) => {
         const resultado = asignaciones.map((asignacion) => ({
             id: asignacion.articuloId?._id,
             titulo: asignacion.articuloId?.titulo,
+            documentoUrl: asignacion.articuloId?.documentoUrl,
             fechaAsignacion: new Date(asignacion.createdAt).toISOString().split('T')[0],
             estado: estadoAsignacionDbToUi[asignacion.estado] || asignacion.estado
         })).filter((a) => a.id);
@@ -145,14 +211,68 @@ app.get('/api/articulos-asignados', verificarToken, async (req, res) => {
     }
 });
 
-// N1. Endpoint: Ver TODOS los artículos (Editor)
+// 5. Enviar Evaluación con Rúbrica (Revisor)
+app.post('/api/evaluar', verificarToken, async (req, res) => {
+    if (!req.user.roles || !req.user.roles.includes('revisor')) return res.status(403).json({ error: "Acceso solo para revisores" });
+    try {
+        const { articuloId, veredicto, comentarios, originalidad, rigorMetodologico, calidadRedaccion, relevancia } = req.body;
+        const veredictoDb = veredictoUiToDb[veredicto] || String(veredicto || '').toLowerCase().replace(/\s+/g, '_');
+
+        if (!articuloId || !veredictoDb || !comentarios) {
+            return res.status(400).json({ error: 'Faltan datos requeridos para la evaluación.' });
+        }
+
+        // Validar rúbricas
+        const rubricaValida = [originalidad, rigorMetodologico, calidadRedaccion, relevancia].every(v => v >= 1 && v <= 5);
+        if (!rubricaValida) {
+            return res.status(400).json({ error: 'Todas las calificaciones de la rúbrica deben estar entre 1 y 5.' });
+        }
+
+        const asignacion = await AsignacionRevision.findOne({
+            articuloId,
+            revisorId: req.user.id,
+            estado: { $ne: 'cancelado' }
+        });
+
+        if (!asignacion) {
+            return res.status(403).json({ error: 'El artículo no está asignado a este revisor o fue cancelado.' });
+        }
+
+        const evaluacion = new Evaluacion({
+            articuloId,
+            revisorId: req.user.id,
+            veredicto: veredictoDb,
+            originalidad,
+            rigorMetodologico,
+            calidadRedaccion,
+            relevancia,
+            comentarios
+        });
+        
+        await evaluacion.save();
+        await AsignacionRevision.findByIdAndUpdate(asignacion._id, { estado: 'evaluado' });
+
+        await registrarHistorial(articuloId, 'Dictamen emitido', `Un revisor emitió su evaluación: ${veredicto}.`, req.user.id);
+
+        return res.json({ mensaje: "Evaluación enviada con éxito. El editor ha sido notificado." });
+    } catch (error) {
+        console.error('Error al guardar evaluación:', error);
+        return res.status(500).json({ error: 'Error interno del servidor.' });
+    }
+});
+
+
+// ═══════════════════════════════════════════════════════
+// ENDPOINTS DE EDITOR
+// ═══════════════════════════════════════════════════════
+
+// 6. Ver TODOS los artículos (Editor)
 app.get('/api/articulos', verificarToken, async (req, res) => {
     if (!req.user.roles || !req.user.roles.includes('editor')) return res.status(403).json({ error: "Acceso solo para editores" });
 
     try {
         const articulos = await Articulo.find().sort({ createdAt: -1 });
         
-        // Populate revisores for each article to show in the UI
         const resultado = await Promise.all(articulos.map(async (art) => {
             const asignaciones = await AsignacionRevision.find({ articuloId: art._id, estado: { $ne: 'cancelado' } });
             const revisoresData = asignaciones.map(a => ({
@@ -166,6 +286,8 @@ app.get('/api/articulos', verificarToken, async (req, res) => {
                 titulo: art.titulo,
                 estado: estadoArticuloDbToUi[art.estado] || art.estado,
                 area: 'General',
+                documentoUrl: art.documentoUrl,
+                versiones: art.versiones || [],
                 revisores: revisoresData
             };
         }));
@@ -177,13 +299,13 @@ app.get('/api/articulos', verificarToken, async (req, res) => {
     }
 });
 
-// N2. Endpoint: Obtener lista de Revisores disponibles (Editor)
+// 7. Obtener lista de Revisores disponibles (Editor)
+//    SOLO retorna usuarios que YA tienen el rol 'revisor' pre-aprobado por un Admin.
 app.get('/api/revisores', verificarToken, async (req, res) => {
     if (!req.user.roles || !req.user.roles.includes('editor')) return res.status(403).json({ error: "Acceso solo para editores" });
 
     try {
-        // En un esquema híbrido, cualquier usuario activo (incluyendo 'autor') es candidato potencial para ser promovido a revisor de forma automática.
-        const revisores = await Usuario.find({ activo: true }).select('username _id roles');
+        const revisores = await Usuario.find({ activo: true, roles: 'revisor' }).select('username _id roles');
         
         const resultado = await Promise.all(revisores.map(async (rev) => {
             const cargaAgregada = await AsignacionRevision.countDocuments({ revisorId: rev._id, estado: { $in: ['pendiente', 'en_progreso'] } });
@@ -201,7 +323,8 @@ app.get('/api/revisores', verificarToken, async (req, res) => {
     }
 });
 
-// N3. Endpoint: Asignar un revisor a un artículo (Editor)
+// 8. Asignar un revisor a un artículo (Editor)
+//    Ya NO otorga roles automáticamente.
 app.post('/api/asignaciones', verificarToken, async (req, res) => {
     if (!req.user.roles || !req.user.roles.includes('editor')) return res.status(403).json({ error: "Acceso solo para editores" });
 
@@ -209,24 +332,25 @@ app.post('/api/asignaciones', verificarToken, async (req, res) => {
         const { articuloId, revisorId } = req.body;
         if (!articuloId || !revisorId) return res.status(400).json({ error: 'Data invalida' });
 
+        // Verificar que el usuario destino realmente tenga rol de revisor
+        const usuarioRevisor = await Usuario.findById(revisorId);
+        if (!usuarioRevisor || !usuarioRevisor.roles.includes('revisor')) {
+            return res.status(400).json({ error: 'El usuario seleccionado no tiene el rol de revisor aprobado por un Administrador.' });
+        }
+
         const existe = await AsignacionRevision.findOne({ articuloId, revisorId, estado: { $ne: 'cancelado' } });
         if (existe) return res.status(400).json({ error: 'Este revisor ya está asignado al artículo.' });
 
         const asignacion = new AsignacionRevision({ articuloId, revisorId, estado: 'pendiente' });
         await asignacion.save();
 
-        // LÓGICA AUTOMÁTICA HYBRIDA: Si el asignado no tiene rol 'revisor', otorgárselo como consecuencia de la asignación.
-        const usuarioRevisor = await Usuario.findById(revisorId);
-        if (usuarioRevisor && !usuarioRevisor.roles.includes('revisor')) {
-            usuarioRevisor.roles.push('revisor');
-            await usuarioRevisor.save();
-        }
-
         // Si tiene al menos 2 revisores, pasar a en_revision
         const cuentaRevisores = await AsignacionRevision.countDocuments({ articuloId, estado: { $ne: 'cancelado'} });
         if (cuentaRevisores >= 2) {
             await Articulo.findByIdAndUpdate(articuloId, { estado: 'en_revision' });
         }
+
+        await registrarHistorial(articuloId, 'Revisor asignado', `Revisor ${usuarioRevisor.username} vinculado por el editor.`, req.user.id);
 
         return res.status(201).json({ mensaje: 'Revisor asignado con éxito.' });
     } catch (error) {
@@ -235,7 +359,7 @@ app.post('/api/asignaciones', verificarToken, async (req, res) => {
     }
 });
 
-// N4. Endpoint: Quitar Asignacion (Editor)
+// 9. Quitar Asignacion (Editor)
 app.delete('/api/asignaciones', verificarToken, async (req, res) => {
     if (!req.user.roles || !req.user.roles.includes('editor')) return res.status(403).json({ error: "Acceso solo para editores" });
 
@@ -245,33 +369,85 @@ app.delete('/api/asignaciones', verificarToken, async (req, res) => {
 
         await AsignacionRevision.findOneAndUpdate({ articuloId, revisorId, estado: { $ne: 'evaluado' } }, { estado: 'cancelado' });
 
+        await registrarHistorial(articuloId, 'Revisor removido', `Un revisor fue desvinculado por el editor.`, req.user.id);
+
         return res.status(200).json({ mensaje: 'Asignación removida.' });
     } catch (error) {
         return res.status(500).json({ error: 'Error al quitar revisión.' });
     }
 });
 
-// N5. Endpoint: Decidir status final articulo (Editor)
+// 10. Decidir status final articulo (Editor)
 app.put('/api/articulos/:id/estado', verificarToken, async (req, res) => {
     if (!req.user.roles || !req.user.roles.includes('editor')) return res.status(403).json({ error: "Acceso solo para editores" });
 
     try {
         const { id } = req.params;
-        const { estado } = req.body; // 'Aceptado' o 'Rechazado' -> lo pasamos a db form
+        const { estado } = req.body;
         let estadoDb = 'recibido';
         if (estado === 'Aceptado') estadoDb = 'aceptado';
         if (estado === 'Rechazado') estadoDb = 'rechazado';
+        if (estado === 'Cambios Menores') estadoDb = 'cambios_menores';
+        if (estado === 'Cambios Mayores') estadoDb = 'cambios_mayores';
 
         await Articulo.findByIdAndUpdate(id, { estado: estadoDb });
+
+        await registrarHistorial(id, `Decisión editorial: ${estado}`, `El editor dictaminó el artículo como "${estado}".`, req.user.id);
+
         return res.status(200).json({ mensaje: 'Decisión registrada correctamente.' });
     } catch (error) {
         return res.status(500).json({ error: 'Error interno de decision.' });
     }
 });
 
-// N6. Endpoint: Modificar roles manualmente (Editor)
-app.put('/api/usuarios/:id/roles', verificarToken, async (req, res) => {
+// 11. Obtener evaluaciones de un artículo (Editor)
+app.get('/api/articulos/:id/evaluaciones', verificarToken, async (req, res) => {
     if (!req.user.roles || !req.user.roles.includes('editor')) return res.status(403).json({ error: "Acceso solo para editores" });
+
+    try {
+        const evaluaciones = await Evaluacion.find({ articuloId: req.params.id })
+            .populate('revisorId', 'username')
+            .sort({ createdAt: -1 });
+
+        const resultado = evaluaciones.map(e => ({
+            _id: e._id,
+            revisor: e.revisorId?.username || 'Anónimo',
+            veredicto: e.veredicto,
+            originalidad: e.originalidad,
+            rigorMetodologico: e.rigorMetodologico,
+            calidadRedaccion: e.calidadRedaccion,
+            relevancia: e.relevancia,
+            comentarios: e.comentarios,
+            fecha: new Date(e.createdAt).toISOString().split('T')[0],
+        }));
+
+        return res.json(resultado);
+    } catch (error) {
+        console.error('Error obteniendo evaluaciones:', error);
+        return res.status(500).json({ error: 'Error interno.' });
+    }
+});
+
+
+// ═══════════════════════════════════════════════════════
+// ENDPOINTS DE ADMINISTRADOR
+// ═══════════════════════════════════════════════════════
+
+// 12. Listar todos los usuarios para gestión (Administrador)
+app.get('/api/usuarios', verificarToken, async (req, res) => {
+    if (!req.user.roles || !req.user.roles.includes('administrador')) return res.status(403).json({ error: "Acceso solo para administradores" });
+    try {
+        const usuarios = await Usuario.find({ activo: true }).select('username email roles createdAt');
+        return res.json(usuarios);
+    } catch (error) {
+        console.error('Error obteniendo usuarios:', error);
+        return res.status(500).json({ error: 'Error interno.' });
+    }
+});
+
+// 13. Modificar roles de un usuario (Administrador)
+app.put('/api/usuarios/:id/roles', verificarToken, async (req, res) => {
+    if (!req.user.roles || !req.user.roles.includes('administrador')) return res.status(403).json({ error: "Acceso solo para administradores" });
 
     try {
         const { id } = req.params;
@@ -279,6 +455,13 @@ app.put('/api/usuarios/:id/roles', verificarToken, async (req, res) => {
         
         if (!Array.isArray(roles) || roles.length === 0) {
             return res.status(400).json({ error: 'Debes proveer un arreglo válido de roles.' });
+        }
+
+        // Validar que solo se asignen roles válidos
+        const rolesValidos = ['autor', 'revisor', 'editor', 'administrador'];
+        const rolesInvalidos = roles.filter(r => !rolesValidos.includes(r));
+        if (rolesInvalidos.length > 0) {
+            return res.status(400).json({ error: `Roles inválidos: ${rolesInvalidos.join(', ')}` });
         }
 
         const usuarioActualizado = await Usuario.findByIdAndUpdate(id, { roles }, { new: true });
@@ -293,55 +476,45 @@ app.put('/api/usuarios/:id/roles', verificarToken, async (req, res) => {
     }
 });
 
-// N7. Endpoint: Listar todos los usuarios para gestión (Editor)
-app.get('/api/usuarios', verificarToken, async (req, res) => {
-    if (!req.user.roles || !req.user.roles.includes('editor')) return res.status(403).json({ error: "Acceso solo para editores" });
+
+// ═══════════════════════════════════════════════════════
+// ENDPOINT COMPARTIDO: HISTORIAL
+// ═══════════════════════════════════════════════════════
+
+// 14. Historial de un artículo (Autor del artículo, Editor, o Admin)
+app.get('/api/articulos/:id/historial', verificarToken, async (req, res) => {
     try {
-        const usuarios = await Usuario.find({ activo: true }).select('username email roles createdAt');
-        return res.json(usuarios);
+        const { id } = req.params;
+        const roles = req.user.roles || [];
+
+        // El autor solo puede ver historial de sus propios artículos
+        if (roles.includes('autor') && !roles.includes('editor') && !roles.includes('administrador')) {
+            const articulo = await Articulo.findById(id);
+            if (!articulo || String(articulo.autorId) !== String(req.user.id)) {
+                return res.status(403).json({ error: 'No tienes permiso para ver este historial.' });
+            }
+        }
+
+        const historial = await HistorialArticulo.find({ articuloId: id }).sort({ createdAt: 1 });
+
+        const resultado = historial.map(h => ({
+            _id: h._id,
+            evento: h.evento,
+            detalle: h.detalle,
+            fecha: h.createdAt,
+        }));
+
+        return res.json(resultado);
     } catch (error) {
-        console.error('Error obteniendo usuarios:', error);
+        console.error('Error obteniendo historial:', error);
         return res.status(500).json({ error: 'Error interno.' });
     }
 });
 
-// 5. Endpoint (TAREA 2313): Enviar Evaluación de Artículo (Revisor)
-app.post('/api/evaluar', verificarToken, async (req, res) => {
-    if (!req.user.roles || !req.user.roles.includes('revisor')) return res.status(403).json({ error: "Acceso solo para revisores" });
-    try {
-        const { articuloId, veredicto, comentarios } = req.body;
-        const veredictoDb = veredictoUiToDb[veredicto] || String(veredicto || '').toLowerCase().replace(/\s+/g, '_');
 
-        if (!articuloId || !veredictoDb || !comentarios) {
-            return res.status(400).json({ error: 'Faltan datos requeridos para la evaluación.' });
-        }
-
-        const asignacion = await AsignacionRevision.findOne({
-            articuloId,
-            revisorId: req.user.id,
-            estado: { $ne: 'cancelado' }
-        });
-
-        if (!asignacion) {
-            return res.status(403).json({ error: 'El artículo no está asignado a este revisor o fue cancelado.' });
-        }
-
-        const evaluacion = new Evaluacion({
-            articuloId,
-            revisorId: req.user.id,
-            veredicto: veredictoDb,
-            comentarios
-        });
-        
-        await evaluacion.save();
-        await AsignacionRevision.findByIdAndUpdate(asignacion._id, { estado: 'evaluado' });
-
-        return res.json({ mensaje: "Evaluación enviada con éxito. El editor ha sido notificado." });
-    } catch (error) {
-        console.error('Error al guardar evaluación:', error);
-        return res.status(500).json({ error: 'Error interno del servidor.' });
-    }
-});
+// ═══════════════════════════════════════════════════════
+// INICIAR SERVIDOR
+// ═══════════════════════════════════════════════════════
 
 const iniciarServidor = async () => {
     try {

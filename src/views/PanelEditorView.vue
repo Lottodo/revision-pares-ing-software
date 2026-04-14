@@ -5,14 +5,10 @@
         <v-toolbar-title class="text-grey-darken-4 font-weight-black text-h5">
           Panel de Editor
         </v-toolbar-title>
-        <v-spacer></v-spacer>
-        <v-btn variant="outlined" color="green-darken-4" class="font-weight-bold rounded-pill shadow-sm" prepend-icon="mdi-account-cog" @click="abrirGestorRoles">
-          Gestor de Roles
-        </v-btn>
       </v-toolbar>
       <v-card-text class="pa-md-8 pa-6 bg-white">
         <p class="text-body-1 text-grey-darken-2 font-weight-medium">
-          Asigna al menos 2 revisores estratégicos a cada manuscrito. La decisión final "Aceptar/Rechazar" estará bloqueada hasta que todos los revisores emitan su veredicto.
+          Asigna al menos 2 revisores a cada manuscrito. La decisión final estará bloqueada hasta que todos los revisores emitan su veredicto. Ahora puedes elegir entre Aceptar, Rechazar, Cambios Menores y Cambios Mayores.
         </p>
       </v-card-text>
     </v-card>
@@ -48,12 +44,20 @@
               </v-chip>
             </div>
 
-            <div class="text-body-2 text-grey-darken-1 mb-4 font-weight-medium">Área: {{ articulo.area || 'General' }}</div>
+            <div class="text-body-2 text-grey-darken-1 mb-2 font-weight-medium">Área: {{ articulo.area || 'General' }}</div>
+
+            <!-- Versiones -->
+            <div v-if="articulo.versiones && articulo.versiones.length > 1" class="mb-3">
+              <v-chip size="x-small" color="purple-darken-1" variant="flat" class="font-weight-bold text-white mr-1">
+                V{{ articulo.versiones.length }}
+              </v-chip>
+              <span class="text-caption text-grey-darken-1 font-weight-medium">{{ articulo.versiones.length }} versiones</span>
+            </div>
 
             <!-- Chips revisores -->
             <div class="d-flex flex-wrap gap-2 mb-4 bg-grey-lighten-4 pa-3 rounded-lg border">
               <span v-if="!articulo.revisores || articulo.revisores.length === 0" class="text-caption text-grey-darken-1 font-weight-medium">
-                Arrastra o asigna revisores abajo
+                Asigna revisores desde el panel lateral
               </span>
               <v-chip
                 v-for="rev in articulo.revisores"
@@ -86,6 +90,14 @@
               </span>
             </div>
 
+            <!-- Visor PDF rápido -->
+            <div v-if="articulo.documentoUrl" class="mb-4">
+              <v-btn size="small" variant="tonal" color="red-darken-2" class="font-weight-bold rounded-pill px-4" @click.stop="abrirVisorPdf(articulo)">
+                <v-icon start size="16">mdi-file-pdf-box</v-icon>
+                Ver Manuscrito
+              </v-btn>
+            </div>
+
             <!-- Zona Decision -->
             <v-divider class="mb-4"></v-divider>
             <div class="d-flex flex-column" @click.stop>
@@ -97,7 +109,7 @@
 
               <template v-else-if="!articulo.revisores || articulo.revisores.length < 2">
                 <span class="text-caption text-orange-darken-3 mb-3 font-weight-bold">Bloqueo: Requiere al menos 2 revisores asignados</span>
-                <div class="d-flex gap-3">
+                <div class="d-flex gap-3 flex-wrap">
                   <v-btn size="small" color="grey-lighten-2" class="text-grey-darken-2 font-weight-bold rounded-pill shadow-sm" disabled elevation="0">Aceptar</v-btn>
                   <v-btn size="small" color="grey-lighten-2" class="text-grey-darken-2 font-weight-bold rounded-pill shadow-sm" disabled elevation="0">Rechazar</v-btn>
                 </div>
@@ -107,7 +119,7 @@
                 <span class="text-caption text-grey-darken-2 mb-3 font-weight-bold">
                   ⏱ Esperando dictámenes: {{ revisoresPendientes(articulo) }}
                 </span>
-                <div class="d-flex gap-3">
+                <div class="d-flex gap-3 flex-wrap">
                   <v-btn size="small" color="grey-lighten-2" class="text-grey-darken-2 font-weight-bold rounded-pill shadow-sm" disabled elevation="0">Aceptar</v-btn>
                   <v-btn size="small" color="grey-lighten-2" class="text-grey-darken-2 font-weight-bold rounded-pill shadow-sm" disabled elevation="0">Rechazar</v-btn>
                 </div>
@@ -117,8 +129,14 @@
                 <v-alert density="compact" type="success" variant="tonal" class="mb-3 rounded-lg text-green-darken-3 font-weight-bold">
                   Dictámenes emitidos. Toma una decisión.
                 </v-alert>
-                <div class="d-flex gap-3">
-                  <v-btn size="small" color="green-darken-2" class="font-weight-bold rounded-pill text-white" elevation="2" @click="decidirArticulo(articulo, 'Aceptado')">Aceptar Manuscrito</v-btn>
+                <v-btn size="small" variant="tonal" color="blue-darken-2" class="font-weight-bold rounded-pill mb-3" @click="verEvaluaciones(articulo)">
+                  <v-icon start size="16">mdi-star-box-multiple-outline</v-icon>
+                  Ver Evaluaciones Detalladas
+                </v-btn>
+                <div class="d-flex gap-3 flex-wrap">
+                  <v-btn size="small" color="green-darken-2" class="font-weight-bold rounded-pill text-white" elevation="2" @click="decidirArticulo(articulo, 'Aceptado')">Aceptar</v-btn>
+                  <v-btn size="small" color="teal-darken-1" class="font-weight-bold rounded-pill text-white" elevation="2" @click="decidirArticulo(articulo, 'Cambios Menores')">Cambios Menores</v-btn>
+                  <v-btn size="small" color="purple-darken-2" class="font-weight-bold rounded-pill text-white" elevation="2" @click="decidirArticulo(articulo, 'Cambios Mayores')">Cambios Mayores</v-btn>
                   <v-btn size="small" color="red-darken-2" class="font-weight-bold rounded-pill text-white" elevation="2" @click="decidirArticulo(articulo, 'Rechazado')">Rechazar</v-btn>
                 </div>
               </template>
@@ -221,37 +239,75 @@
       </v-col>
     </v-row>
 
-    <!-- Dialog Gestor Manual de Roles -->
-    <v-dialog v-model="mostrarGestorRoles" max-width="650px">
-      <v-card class="rounded-xl">
-        <v-toolbar color="white" class="px-4 border-b" flat>
-          <v-icon color="grey-darken-3" class="mr-3">mdi-shield-account</v-icon>
-          <v-toolbar-title class="text-grey-darken-4 font-weight-bold">Asignación Manual de Multiroles</v-toolbar-title>
+    <!-- Dialog Visor PDF -->
+    <v-dialog v-model="mostrarVisorPdf" max-width="900" transition="dialog-bottom-transition">
+      <v-card class="rounded-xl overflow-hidden elevation-10 border-card">
+        <v-toolbar color="white" flat class="border-b">
+          <v-toolbar-title class="text-grey-darken-4 font-weight-black text-h6">
+            <v-icon start color="red-darken-2" class="mr-1">mdi-file-pdf-box</v-icon>
+            {{ pdfArticuloActual?.titulo }}
+          </v-toolbar-title>
           <v-spacer></v-spacer>
-          <v-btn icon="mdi-close" color="grey-darken-2" variant="text" @click="mostrarGestorRoles = false"></v-btn>
+          <!-- Selector de versión -->
+          <v-select
+            v-if="pdfArticuloActual?.versiones?.length > 1"
+            v-model="pdfVersionSeleccionada"
+            :items="pdfArticuloActual.versiones.map(v => ({ title: `V${v.numero}`, value: v.url }))"
+            item-title="title"
+            item-value="value"
+            variant="outlined"
+            density="compact"
+            hide-details
+            style="max-width: 120px;"
+            class="mr-3"
+          ></v-select>
+          <v-btn icon="mdi-close" variant="text" color="grey-darken-2" @click="mostrarVisorPdf = false"></v-btn>
+        </v-toolbar>
+        <v-card-text class="pa-0">
+          <iframe :src="pdfVersionSeleccionada || pdfArticuloActual?.documentoUrl" style="width: 100%; height: 650px; border: none;"></iframe>
+        </v-card-text>
+      </v-card>
+    </v-dialog>
+
+    <!-- Dialog Evaluaciones Detalladas -->
+    <v-dialog v-model="mostrarEvaluaciones" max-width="750" transition="dialog-bottom-transition">
+      <v-card class="rounded-xl overflow-hidden elevation-10 border-card">
+        <v-toolbar color="white" flat class="border-b">
+          <v-toolbar-title class="text-grey-darken-4 font-weight-black text-h6">
+            <v-icon start color="amber-darken-2" class="mr-1">mdi-star-box-multiple-outline</v-icon>
+            Evaluaciones: {{ evalArticulo?.titulo }}
+          </v-toolbar-title>
+          <v-spacer></v-spacer>
+          <v-btn icon="mdi-close" variant="text" color="grey-darken-2" @click="mostrarEvaluaciones = false"></v-btn>
         </v-toolbar>
         <v-card-text class="pa-6">
-          <v-alert v-if="msjGestor" :type="msjGestorTipo" variant="tonal" class="mb-4 font-weight-medium" density="compact">{{ msjGestor }}</v-alert>
-          <p class="text-caption text-grey-darken-1 mb-4">Selecciona los roles que desees otorgar a cada usuario en tiempo real. Cuidado al revocar accesos administrativos.</p>
-          
-          <v-list lines="two" bg-color="transparent" class="pa-0">
-            <v-list-item v-for="user in todosUsuarios" :key="user._id" class="mb-3 border rounded-lg bg-grey-lighten-5 pa-3">
-              <v-list-item-title class="font-weight-bold text-h6 text-grey-darken-4 mb-1">
-                {{ user.username }} 
-                <span class="text-body-2 text-grey-darken-1 font-weight-regular ml-2">{{ user.email }}</span>
-              </v-list-item-title>
-              
-              <div class="d-flex align-center flex-wrap gap-2 mt-2">
-                <v-checkbox-btn v-model="user.rolesTemp" value="autor" label="Autor" color="primary" class="mr-4"></v-checkbox-btn>
-                <v-checkbox-btn v-model="user.rolesTemp" value="revisor" label="Revisor" color="green-darken-2" class="mr-4"></v-checkbox-btn>
-                <v-checkbox-btn v-model="user.rolesTemp" value="editor" label="Editor" color="red-darken-2" class="mr-4"></v-checkbox-btn>
-                <v-spacer></v-spacer>
-                <v-btn size="small" color="blue-grey-darken-3" class="font-weight-bold text-white rounded-pill px-4" elevation="2" @click="guardarRolesManual(user)">
-                  Aplicar
-                </v-btn>
+          <v-row v-if="cargandoEvaluaciones">
+            <v-col cols="12" class="d-flex justify-center pa-6">
+              <v-progress-circular indeterminate color="amber-darken-2" size="40" width="3"></v-progress-circular>
+            </v-col>
+          </v-row>
+          <div v-else-if="evaluacionesDetalladas.length === 0" class="text-center pa-6">
+            <p class="text-grey-darken-1 font-weight-medium">Sin evaluaciones registradas.</p>
+          </div>
+          <v-card v-for="(ev, idx) in evaluacionesDetalladas" :key="idx" class="mb-4 border rounded-xl" variant="flat">
+            <v-card-text class="pa-5">
+              <div class="d-flex justify-space-between align-center mb-3">
+                <span class="font-weight-bold text-grey-darken-4 text-subtitle-1">{{ ev.revisor }}</span>
+                <v-chip size="small" :color="getColorVeredicto(ev.veredicto)" variant="flat" class="font-weight-bold text-white">{{ ev.veredicto }}</v-chip>
               </div>
-            </v-list-item>
-          </v-list>
+              <v-row dense class="mb-3">
+                <v-col cols="6"><span class="text-caption text-grey-darken-1">Originalidad</span><br><v-rating :model-value="ev.originalidad" length="5" size="18" readonly color="amber-darken-2" active-color="amber-darken-2" density="compact"></v-rating></v-col>
+                <v-col cols="6"><span class="text-caption text-grey-darken-1">Rigor Metodológico</span><br><v-rating :model-value="ev.rigorMetodologico" length="5" size="18" readonly color="amber-darken-2" active-color="amber-darken-2" density="compact"></v-rating></v-col>
+                <v-col cols="6"><span class="text-caption text-grey-darken-1">Calidad de Redacción</span><br><v-rating :model-value="ev.calidadRedaccion" length="5" size="18" readonly color="amber-darken-2" active-color="amber-darken-2" density="compact"></v-rating></v-col>
+                <v-col cols="6"><span class="text-caption text-grey-darken-1">Relevancia</span><br><v-rating :model-value="ev.relevancia" length="5" size="18" readonly color="amber-darken-2" active-color="amber-darken-2" density="compact"></v-rating></v-col>
+              </v-row>
+              <div class="bg-grey-lighten-4 pa-3 rounded-lg border">
+                <span class="text-caption text-grey-darken-1 font-weight-bold">Comentarios:</span>
+                <p class="text-body-2 text-grey-darken-3 mt-1 mb-0">{{ ev.comentarios }}</p>
+              </div>
+              <div class="text-caption text-grey-lighten-1 mt-2">{{ ev.fecha }}</div>
+            </v-card-text>
+          </v-card>
         </v-card-text>
       </v-card>
     </v-dialog>
@@ -268,11 +324,16 @@ const articuloSeleccionado = ref(null);
 const mensajeError = ref('');
 const mensajeExito = ref('');
 
-// Estado para Gestor de Roles
-const mostrarGestorRoles = ref(false);
-const todosUsuarios = ref([]);
-const msjGestor = ref('');
-const msjGestorTipo = ref('info');
+// Visor PDF
+const mostrarVisorPdf = ref(false);
+const pdfArticuloActual = ref(null);
+const pdfVersionSeleccionada = ref(null);
+
+// Evaluaciones detalladas
+const mostrarEvaluaciones = ref(false);
+const evalArticulo = ref(null);
+const evaluacionesDetalladas = ref([]);
+const cargandoEvaluaciones = ref(false);
 
 const headersRevisores = [
   { title: 'Revisor', key: 'nombre', align: 'start' },
@@ -299,6 +360,16 @@ const getColorCarga = (carga) => {
   if (carga <= 2) return 'green-darken-2';
   if (carga <= 4) return 'orange-darken-2';
   return 'red-darken-2';
+};
+
+const getColorVeredicto = (v) => {
+  switch (v) {
+    case 'aceptar': return 'green-darken-3';
+    case 'cambios_menores': return 'teal-darken-1';
+    case 'cambios_mayores': return 'purple-darken-2';
+    case 'rechazar': return 'red-darken-3';
+    default: return 'grey';
+  }
 };
 
 const nombreRevisor = (id) => {
@@ -333,13 +404,33 @@ const revisoresPendientes = (articulo) => {
 };
 
 const seleccionarArticulo = (articulo) => {
-  if (articuloDecidido(articulo)) {
-      articuloSeleccionado.value = articulo; // allow view mode
-      return;
-  }
   articuloSeleccionado.value = articulo;
   mensajeError.value = '';
   mensajeExito.value = '';
+};
+
+const abrirVisorPdf = (articulo) => {
+  pdfArticuloActual.value = articulo;
+  pdfVersionSeleccionada.value = articulo.documentoUrl;
+  mostrarVisorPdf.value = true;
+};
+
+const verEvaluaciones = async (articulo) => {
+  evalArticulo.value = articulo;
+  evaluacionesDetalladas.value = [];
+  mostrarEvaluaciones.value = true;
+  cargandoEvaluaciones.value = true;
+  try {
+    const token = localStorage.getItem('token');
+    const res = await fetch(`/api/articulos/${articulo._id || articulo.id}/evaluaciones`, { headers: { 'Authorization': `Bearer ${token}` } });
+    if (res.ok) {
+      evaluacionesDetalladas.value = await res.json();
+    }
+  } catch (e) {
+    console.error('Error cargando evaluaciones:', e);
+  } finally {
+    cargandoEvaluaciones.value = false;
+  }
 };
 
 // Acciones Reales contra el Backend
@@ -356,7 +447,7 @@ const fetchPanelData = async () => {
 
         if (resArts.ok) {
             articulos.value = await resArts.json();
-            articulos.value.forEach(a => { a.id = a._id; }); // mapping
+            articulos.value.forEach(a => { a.id = a._id; });
         }
 
         if (resRevs.ok) {
@@ -392,8 +483,7 @@ const asignarRevisor = async (revisor) => {
      const data = await res.json();
      if(res.ok) {
         mensajeExito.value = 'Revisor vinculado exitosamente en DB.';
-        await fetchPanelData(); // refresh full state
-        // Reselect art visually
+        await fetchPanelData();
         const updatedArt = articulos.value.find(a => a.id === (art._id || art.id));
         if (updatedArt) articuloSeleccionado.value = updatedArt;
      } else {
@@ -445,59 +535,6 @@ const decidirArticulo = async (articulo, decision) => {
   } catch(e) {
      console.error(e);
      mensajeError.value = 'Fallo guardando dictamen final.';
-  }
-};
-
-// Acciones Manuales de Roles
-const abrirGestorRoles = async () => {
-  msjGestor.value = '';
-  mostrarGestorRoles.value = true;
-  try {
-    const token = localStorage.getItem('token');
-    const res = await fetch('/api/usuarios', { headers: { 'Authorization': `Bearer ${token}` } });
-    if (res.ok) {
-      const data = await res.json();
-      // Clonar los roles para la vista (modificables temporalmente)
-      todosUsuarios.value = data.map(u => ({ ...u, rolesTemp: [...u.roles] }));
-    } else {
-      msjGestor.value = 'No se pudieron cargar los usuarios.';
-      msjGestorTipo.value = 'error';
-    }
-  } catch (e) {
-    msjGestor.value = 'Fallo de red al solicitar usuarios.';
-    msjGestorTipo.value = 'error';
-  }
-};
-
-const guardarRolesManual = async (user) => {
-  if (!user.rolesTemp || user.rolesTemp.length === 0) {
-    msjGestorTipo.value = 'error';
-    msjGestor.value = `Error: ${user.username} debe tener al menos un rol (ej. autor).`;
-    return;
-  }
-  try {
-    const token = localStorage.getItem('token');
-    const res = await fetch(`/api/usuarios/${user._id}/roles`, {
-      method: 'PUT',
-      headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ roles: user.rolesTemp })
-    });
-    
-    if (res.ok) {
-      const data = await res.json();
-      user.roles = [...data.roles]; // consolidar cambios
-      msjGestorTipo.value = 'success';
-      msjGestor.value = `¡Roles reales de ${user.username} actualizados con éxito a [${data.roles.join(', ')}]!`;
-      // Refrescar lista de revisores por si hubo cambios
-      await fetchPanelData();
-    } else {
-      const errorData = await res.json();
-      msjGestorTipo.value = 'error';
-      msjGestor.value = errorData.error || 'Error al guardar.';
-    }
-  } catch (e) {
-    msjGestorTipo.value = 'error';
-    msjGestor.value = 'Fallo guardando roles.';
   }
 };
 

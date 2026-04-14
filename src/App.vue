@@ -21,6 +21,10 @@
           <v-btn variant="text" prepend-icon="mdi-view-dashboard-outline" to="/editor" class="text-grey-darken-3 font-weight-medium rounded-pill me-1" active-class="bg-grey-lighten-4 text-green-darken-4">Panel Editor</v-btn>
         </template>
 
+        <template v-if="userRoles.includes('administrador')">
+          <v-btn variant="text" prepend-icon="mdi-shield-crown-outline" to="/admin" class="text-grey-darken-3 font-weight-medium rounded-pill me-1" active-class="bg-grey-lighten-4 text-deep-purple-darken-2">Admin</v-btn>
+        </template>
+
         <v-btn variant="flat" color="blue-grey-darken-4" class="rounded-pill font-weight-bold px-6 ml-2 shadow-sm" prepend-icon="mdi-logout" @click="handleLogout">Salir</v-btn>
       </div>
     </v-app-bar>
