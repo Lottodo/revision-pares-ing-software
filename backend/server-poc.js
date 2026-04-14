@@ -516,9 +516,32 @@ app.get('/api/articulos/:id/historial', verificarToken, async (req, res) => {
 // INICIAR SERVIDOR
 // ═══════════════════════════════════════════════════════
 
+const autoSeed = async () => {
+    const bcrypt = (await import('bcryptjs')).default;
+    const count = await Usuario.countDocuments();
+    if (count > 0) {
+        console.log(`[AutoSeed] Base de datos ya tiene ${count} usuarios. Omitiendo seed.`);
+        return;
+    }
+    console.log('[AutoSeed] Base de datos vacía. Creando usuarios de prueba...');
+    const salt = await bcrypt.genSalt(10);
+    const passwordHash = await bcrypt.hash('1234', salt);
+    const usuarios = [
+        { username: 'admin', email: 'admin@uabc.edu.mx', passwordHash, roles: ['administrador'] },
+        { username: 'autor1', email: 'autor1@uabc.edu.mx', passwordHash, roles: ['autor'] },
+        { username: 'revisor1', email: 'revisor1@uabc.edu.mx', passwordHash, roles: ['revisor'] },
+        { username: 'revisor2', email: 'revisor2@uabc.edu.mx', passwordHash, roles: ['revisor'] },
+        { username: 'editor1', email: 'editor1@uabc.edu.mx', passwordHash, roles: ['editor'] },
+        { username: 'multiusuario', email: 'multiusuario@uabc.edu.mx', passwordHash, roles: ['autor', 'revisor', 'editor'] },
+    ];
+    await Usuario.insertMany(usuarios);
+    console.log('[AutoSeed] Usuarios creados correctamente.');
+};
+
 const iniciarServidor = async () => {
     try {
         await connectDB();
+        await autoSeed();
         app.listen(3000, () => console.log('[Servidor] Backend corriendo en http://localhost:3000'));
     } catch (error) {
         console.error('No se pudo iniciar el backend:', error);
