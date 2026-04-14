@@ -26,51 +26,74 @@
           <v-list-item
             v-for="user in todosUsuarios"
             :key="user._id"
-            class="mb-4 border rounded-xl bg-grey-lighten-5 pa-4 transition-swing"
+            class="mb-4 border rounded-xl bg-grey-lighten-5 pa-0 overflow-hidden shadow-sm"
           >
-            <template #prepend>
-              <v-avatar color="deep-purple-lighten-4" size="48" class="mr-4">
-                <span class="text-deep-purple-darken-3 font-weight-black text-subtitle-1">{{ user.username.substring(0, 2).toUpperCase() }}</span>
-              </v-avatar>
-            </template>
-
-            <v-list-item-title class="font-weight-bold text-h6 text-grey-darken-4 mb-1">
-              {{ user.username }}
-              <span class="text-body-2 text-grey-darken-1 font-weight-regular ml-2">{{ user.email }}</span>
-            </v-list-item-title>
-
-            <v-list-item-subtitle class="mt-1">
-              <div class="d-flex flex-wrap gap-1">
-                <v-chip
-                  v-for="r in user.roles"
-                  :key="r"
-                  size="x-small"
-                  :color="getColorRol(r)"
-                  variant="flat"
-                  class="font-weight-bold text-white"
-                >
-                  {{ r }}
-                </v-chip>
+            <div class="d-flex flex-column flex-sm-row pa-4">
+              <!-- Avatar y Info Principal -->
+              <div class="d-flex align-center mb-4 mb-sm-0 mr-sm-6">
+                <v-avatar color="deep-purple-lighten-4" size="56" class="mr-4">
+                  <span class="text-deep-purple-darken-3 font-weight-black text-h6">{{ user.username.substring(0, 2).toUpperCase() }}</span>
+                </v-avatar>
+                <div>
+                  <div class="font-weight-black text-h6 text-grey-darken-4 line-height-tight">{{ user.username }}</div>
+                  <div class="text-body-2 text-grey-darken-1">{{ user.email }}</div>
+                </div>
               </div>
-            </v-list-item-subtitle>
 
-            <div class="d-flex align-center flex-wrap gap-2 mt-4">
-              <v-checkbox-btn v-model="user.rolesTemp" value="autor" label="Autor" color="blue-darken-2" density="compact" class="mr-3"></v-checkbox-btn>
-              <v-checkbox-btn v-model="user.rolesTemp" value="revisor" label="Revisor" color="green-darken-2" density="compact" class="mr-3"></v-checkbox-btn>
-              <v-checkbox-btn v-model="user.rolesTemp" value="editor" label="Editor" color="orange-darken-2" density="compact" class="mr-3"></v-checkbox-btn>
-              <v-checkbox-btn v-model="user.rolesTemp" value="administrador" label="Admin" color="deep-purple-darken-2" density="compact" class="mr-3"></v-checkbox-btn>
-              <v-spacer></v-spacer>
-              <v-btn
-                size="small"
-                color="deep-purple-darken-2"
-                class="font-weight-bold text-white rounded-pill px-5"
-                elevation="2"
-                @click="guardarRoles(user)"
-                :loading="user._saving"
-              >
-                <v-icon start size="16">mdi-content-save-check-outline</v-icon>
-                Aplicar
-              </v-btn>
+              <!-- Roles actuales badges -->
+              <div class="d-flex align-center flex-grow-1">
+                <div class="d-flex flex-wrap gap-1">
+                  <v-chip
+                    v-for="r in user.roles"
+                    :key="r"
+                    size="x-small"
+                    :color="getColorRol(r)"
+                    variant="flat"
+                    class="font-weight-bold text-white shadow-sm"
+                  >
+                    {{ r }}
+                  </v-chip>
+                </div>
+              </div>
+            </div>
+
+            <v-divider></v-divider>
+
+            <!-- Gestor de Roles Seccion -->
+            <div class="bg-white pa-4">
+              <div class="text-overline text-grey-darken-1 mb-2">Asignar Permisos</div>
+              <div class="d-flex flex-column flex-md-row align-md-center justify-space-between gap-3">
+                <div class="d-flex flex-wrap gap-x-4 gap-y-1">
+                  <v-checkbox-btn v-model="user.rolesTemp" value="autor" label="Autor" color="blue-darken-2" density="comfortable"></v-checkbox-btn>
+                  <v-checkbox-btn v-model="user.rolesTemp" value="revisor" label="Revisor" color="green-darken-2" density="comfortable"></v-checkbox-btn>
+                  <v-checkbox-btn v-model="user.rolesTemp" value="editor" label="Editor" color="orange-darken-2" density="comfortable"></v-checkbox-btn>
+                  <v-checkbox-btn v-model="user.rolesTemp" value="administrador" label="Admin" color="deep-purple-darken-2" density="comfortable"></v-checkbox-btn>
+                </div>
+                
+                <v-btn
+                  block
+                  class="d-md-none mt-2 font-weight-black text-white rounded-lg"
+                  color="deep-purple-darken-2"
+                  @click="guardarRoles(user)"
+                  :loading="user._saving"
+                  size="large"
+                >
+                  <v-icon start>mdi-content-save-check-outline</v-icon>
+                  Actualizar Roles
+                </v-btn>
+
+                <v-btn
+                  display="none"
+                  class="d-none d-md-flex font-weight-black text-white rounded-pill px-8"
+                  color="deep-purple-darken-2"
+                  elevation="2"
+                  @click="guardarRoles(user)"
+                  :loading="user._saving"
+                >
+                  <v-icon start>mdi-content-save-check-outline</v-icon>
+                  Aplicar
+                </v-btn>
+              </div>
             </div>
           </v-list-item>
         </v-list>

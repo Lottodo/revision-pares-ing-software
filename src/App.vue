@@ -7,7 +7,12 @@
       
       <v-spacer></v-spacer>
 
-      <div class="nav-scroll-container d-flex align-center mr-4">
+      <div 
+        ref="scrollContainer"
+        class="nav-scroll-container d-flex align-center mr-4"
+        @scroll="handleScroll"
+        :style="navMaskStyle"
+      >
         <div class="d-flex align-center gap-2 px-2">
           <template v-if="userRoles.includes('autor')">
             <v-btn variant="text" prepend-icon="mdi-upload" to="/subir-articulo" class="text-grey-darken-3 font-weight-medium rounded-pill me-1" active-class="bg-grey-lighten-4 text-green-darken-4">Subir Artículo</v-btn>
@@ -44,12 +49,15 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuth } from '@/composables/useAuth'
 
 const router = useRouter()
 const { user, token, logout } = useAuth()
+
+const scrollContainer = ref(null)
+const scrollPos = ref({ left: 0, max: 0 })
 
 const isAuthenticated = computed(() => !!token.value)
 // Dynamic role calculation that respects the ref user object and falls back to storage if needed
@@ -76,6 +84,41 @@ const userRoles = computed(() => {
 const handleLogout = () => {
   logout()
 }
+
+// Lógica de scroll para el fade inteligente
+const handleScroll = (e) => {
+  const el = e.target
+  scrollPos.value = {
+    left: el.scrollLeft,
+    max: el.scrollWidth - el.clientWidth
+  }
+}
+
+const navMaskStyle = computed(() => {
+  const { left, max } = scrollPos.value
+  if (max <= 0) return {}
+
+  const showLeft = left > 10
+  const showRight = left < max - 10
+
+  if (showLeft && showRight) {
+    return { maskImage: 'linear-gradient(to right, transparent, black 15%, black 85%, transparent 100%)', webkitMaskImage: 'linear-gradient(to right, transparent, black 15%, black 85%, transparent 100%)' }
+  } else if (showLeft) {
+    return { maskImage: 'linear-gradient(to right, transparent, black 15%)', webkitMaskImage: 'linear-gradient(to right, transparent, black 15%)' }
+  } else if (showRight) {
+    return { maskImage: 'linear-gradient(to right, black 85%, transparent 100%)', webkitMaskImage: 'linear-gradient(to right, black 85%, transparent 100%)' }
+  }
+  return {}
+})
+
+// Inicializar scroll al montar
+onMounted(() => {
+  if (scrollContainer.value) {
+    setTimeout(() => {
+      handleScroll({ target: scrollContainer.value })
+    }, 500)
+  }
+})
 </script>
 
 <style>
@@ -109,8 +152,7 @@ body {
   overflow-x: auto;
   scrollbar-width: none; /* Firefox */
   -ms-overflow-style: none; /* IE/Edge */
-  mask-image: linear-gradient(to right, black 85%, transparent 100%);
-  -webkit-mask-image: linear-gradient(to right, black 85%, transparent 100%);
+  transition: mask-image 0.3s ease;
 }
 
 .nav-scroll-container::-webkit-scrollbar {
