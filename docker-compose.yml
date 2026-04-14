@@ -14,6 +14,8 @@ services:
       - JWT_SECRET=mi_clave_super_secreta_sprint1
     depends_on:
       - mongo
+    networks:
+      - app-net
 
   mongo:
     image: mongo:7
@@ -22,6 +24,8 @@ services:
       - "27017:27017"
     volumes:
       - mongo_data:/data/db
+    networks:
+      - app-net
 
   frontend:
     build: .
@@ -37,6 +41,12 @@ services:
       - BACKEND_URL=http://backend:3000
     depends_on:
       - backend
+    networks:
+      - app-net
+
+networks:
+  app-net:
+    driver: bridge
 
 volumes:
   mongo_data:
