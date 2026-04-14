@@ -1,14 +1,14 @@
 <template>
   <v-container fluid class="pa-md-8 pa-4 max-width-container">
     <v-card class="elevation-3 w-100 rounded-xl overflow-hidden border-card">
-      <v-toolbar color="transparent" flat class="bg-gradient-header px-4">
-        <v-toolbar-title class="text-white font-weight-black text-h5">
-          <v-icon start size="28" class="mr-2">mdi-text-box-search-outline</v-icon>
+      <v-toolbar color="white" flat class="border-b px-4">
+        <v-toolbar-title class="text-grey-darken-4 font-weight-black text-h5">
+          <v-icon start size="28" class="mr-2 text-green-darken-4">mdi-text-box-search-outline</v-icon>
           Panel de Evaluación (Revisor)
         </v-toolbar-title>
       </v-toolbar>
 
-      <v-card-text class="pa-md-8 pa-6">
+      <v-card-text class="pa-md-8 pa-6 bg-white">
         <p class="text-body-1 text-grey-darken-2 mb-8 font-weight-medium">
           Selecciona un manuscrito pendiente para leerlo detenidamente y omitir una evaluación justificada.
         </p>
@@ -77,12 +77,12 @@
     <!-- Modal de Evaluación (Vuetify Native) -->
     <v-dialog v-model="mostrarModal" max-width="650" persistent transition="dialog-bottom-transition">
       <v-card class="rounded-xl overflow-hidden elevation-10 border-card">
-        <v-toolbar color="green-darken-3" flat>
-          <v-toolbar-title class="text-white font-weight-black text-h6">
+        <v-toolbar color="white" flat class="border-b">
+          <v-toolbar-title class="text-grey-darken-4 font-weight-black text-h6">
             Dictamen: {{ articuloActual?.titulo }}
           </v-toolbar-title>
           <v-spacer></v-spacer>
-          <v-btn icon="mdi-close" variant="text" color="white" @click="cerrarModal" :disabled="enviando"></v-btn>
+          <v-btn icon="mdi-close" variant="text" color="grey-darken-2" @click="cerrarModal" :disabled="enviando"></v-btn>
         </v-toolbar>
         
         <v-card-text class="pa-6">
@@ -263,9 +263,6 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.bg-gradient-header {
-  background: linear-gradient(135deg, #0f3e2b 0%, #1a5c3a 100%);
-}
 
 .border-card {
   border: 1px solid rgba(0,0,0,0.06);

@@ -1,9 +1,9 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import LoginView from '../views/LoginView.vue'
-import SubirArticulo from '../views/SubirArticulo.vue'
-import EstadoArticulos from '../views/EstadoArticulos.vue'
-import ArticulosAsignados from '../views/ArticulosAsignados.vue'
-import EditorDashboard from '../views/EditorDashboard.vue'
+import SubirArticulo from '../views/SubirArticuloView.vue'
+import EstadoArticulos from '../views/EstadoArticulosView.vue'
+import ArticulosAsignados from '../views/ArticulosAsignadosView.vue'
+import EditorDashboard from '../views/PanelEditorView.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
