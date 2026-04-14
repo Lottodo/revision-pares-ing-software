@@ -36,6 +36,13 @@ app.use(express.json());
 app.use(cors());
 app.use('/uploads', express.static(uploadsDir));
 
+// ── Servir frontend compilado (producción / ngrok) ──
+const distDir = path.resolve(__dirname, '../dist');
+if (fs.existsSync(distDir)) {
+    app.use(express.static(distDir));
+    console.log('[Servidor] Sirviendo frontend compilado desde /dist');
+}
+
 // Cargar variables de entorno
 const __envPath = path.resolve(__dirname, '.env');
 dotenv.config({ path: __envPath });
@@ -538,11 +545,23 @@ const autoSeed = async () => {
     console.log('[AutoSeed] Usuarios creados correctamente.');
 };
 
+// ── Catch-all SPA: devolver index.html para rutas del frontend ──
+if (fs.existsSync(distDir)) {
+    app.use((req, res, next) => {
+        // Solo interceptar GETs que no sean API ni uploads
+        if (req.method === 'GET' && !req.path.startsWith('/api') && !req.path.startsWith('/uploads')) {
+            return res.sendFile(path.join(distDir, 'index.html'));
+        }
+        next();
+    });
+}
+
 const iniciarServidor = async () => {
     try {
         await connectDB();
         await autoSeed();
-        app.listen(3000, () => console.log('[Servidor] Backend corriendo en http://localhost:3000'));
+        const PORT = process.env.PORT || 3000;
+        app.listen(PORT, '0.0.0.0', () => console.log(`[Servidor] Backend corriendo en http://0.0.0.0:${PORT}`));
     } catch (error) {
         console.error('No se pudo iniciar el backend:', error);
         process.exit(1);

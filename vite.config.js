@@ -18,6 +18,7 @@ export default defineConfig({
     },
   },
   server: {
+    allowedHosts: true,
     proxy: {
       '/api': {
         target: process.env.BACKEND_URL || 'http://localhost:3000',
