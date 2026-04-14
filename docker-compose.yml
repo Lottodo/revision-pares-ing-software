@@ -12,8 +12,18 @@ services:
     command: npm run start:backend
     environment:
       - PORT=3000
-      # Si dependes de MONGO_URI, este lo toma del entorno host o lo puedes definir aquí.
-      # Nota: asegurate de tener tu MONGO_URI en backend/.env o directamente aquí.
+      - MONGO_URI=mongodb://mongo:27017/peerreview
+    depends_on:
+      - mongo
+
+
+  mongo:
+    image: mongo:latest
+    container_name: peer_review_mongo
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
 
   frontend:
     build: .
@@ -27,5 +37,9 @@ services:
     command: npm run dev -- --host 0.0.0.0
     environment:
       - VITE_PORT=5173
+      - BACKEND_URL=http://backend:3000
     depends_on:
       - backend
+
+volumes:
+  mongo_data:

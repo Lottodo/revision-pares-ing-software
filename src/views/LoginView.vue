@@ -1,12 +1,12 @@
 <template>
   <div class="login-page">
     <v-card class="login-card elevation-10 rounded-xl overflow-hidden border-card">
-      <div class="bg-gradient-header pa-8 text-center">
-        <h2 class="text-white font-weight-black text-h4 mb-2">
-          Studio<span class="text-green-lighten-2">Peer</span>
+      <div class="pa-8 text-center bg-white border-b">
+        <h2 class="font-weight-black text-h4 mb-2 text-grey-darken-4">
+          Studio<span class="text-green-darken-4">Peer</span>
         </h2>
-        <div class="text-white opacity-80 font-weight-medium">
-          Sistema de Revisión por Pares — UABC FIM
+        <div class="text-grey-darken-1 font-weight-medium text-subtitle-2 tracking-wide text-uppercase">
+          Revisión por Pares
         </div>
       </div>
 
@@ -21,8 +21,7 @@
             :error-messages="errors.username"
             @input="clearError('username')"
             class="mb-4 font-weight-medium"
-            bg-color="grey-lighten-4"
-            prepend-inner-icon="mdi-account-outline"
+            prepend-inner-icon="mdi-account"
           ></v-text-field>
 
           <v-text-field
@@ -34,11 +33,10 @@
             density="comfortable"
             :error-messages="errors.password"
             :append-inner-icon="showPassword ? 'mdi-eye-off' : 'mdi-eye'"
-            prepend-inner-icon="mdi-lock-outline"
             @click:append-inner="showPassword = !showPassword"
             @input="clearError('password')"
             class="mb-6 font-weight-medium"
-            bg-color="grey-lighten-4"
+            prepend-inner-icon="mdi-lock"
           ></v-text-field>
 
           <!-- Error del API -->
@@ -57,7 +55,7 @@
 
           <v-btn
             type="submit"
-            color="green-darken-3"
+            color="green-darken-4"
             class="text-white font-weight-black mt-2 rounded-pill shadow-sm"
             size="x-large"
             block
@@ -143,26 +141,19 @@ const handleLogin = async () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #f4f7f6 0%, #e0e8e4 100%);
+  background-color: #F8FAFC !important;
   padding: 1rem;
 }
 
 .login-card {
   width: 100%;
-  max-width: 480px;
-  background-color: rgba(255, 255, 255, 0.95) !important;
-  backdrop-filter: blur(20px);
+  max-width: 440px;
+  background-color: white !important;
+  border: 1px solid #E2E8F0;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.01) !important;
 }
 
-.bg-gradient-header {
-  background: linear-gradient(135deg, #0f3e2b 0%, #1a5c3a 100%);
-}
-
-.border-card {
-  border: 1px solid rgba(0,0,0,0.05);
-}
-
-.shadow-sm {
-  box-shadow: 0 4px 6px rgba(0,0,0,0.1) !important;
+.tracking-wide {
+  letter-spacing: 0.1em;
 }
 </style>

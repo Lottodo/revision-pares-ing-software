@@ -8,20 +8,20 @@
       <v-spacer></v-spacer>
 
       <div class="d-flex align-center mr-4 gap-2">
-        <template v-if="userRole === 'autor'">
-          <v-btn variant="text" prepend-icon="mdi-upload" to="/subir-articulo" class="text-grey-darken-3 font-weight-medium rounded-pill me-2">Subir Artículo</v-btn>
-          <v-btn variant="text" prepend-icon="mdi-format-list-checks" to="/estado-articulos" class="text-grey-darken-3 font-weight-medium rounded-pill me-2">Tus Manuscritos</v-btn>
+        <template v-if="userRoles.includes('autor')">
+          <v-btn variant="text" prepend-icon="mdi-upload" to="/subir-articulo" class="text-grey-darken-3 font-weight-medium rounded-pill me-1" active-class="bg-grey-lighten-4 text-green-darken-4">Subir Artículo</v-btn>
+          <v-btn variant="text" prepend-icon="mdi-format-list-checks" to="/estado-articulos" class="text-grey-darken-3 font-weight-medium rounded-pill me-1" active-class="bg-grey-lighten-4 text-green-darken-4">Tus Manuscritos</v-btn>
         </template>
 
-        <template v-if="userRole === 'revisor'">
-          <v-btn variant="text" prepend-icon="mdi-text-box-search-outline" to="/articulos-asignados" class="text-grey-darken-3 font-weight-medium rounded-pill me-2">Tareas Revisor</v-btn>
+        <template v-if="userRoles.includes('revisor')">
+          <v-btn variant="text" prepend-icon="mdi-text-box-search-outline" to="/articulos-asignados" class="text-grey-darken-3 font-weight-medium rounded-pill me-1" active-class="bg-grey-lighten-4 text-green-darken-4">Tareas Revisor</v-btn>
         </template>
 
-        <template v-if="userRole === 'editor'">
-          <v-btn variant="text" prepend-icon="mdi-view-dashboard-outline" to="/editor" class="text-grey-darken-3 font-weight-medium rounded-pill me-2">Panel Editor</v-btn>
+        <template v-if="userRoles.includes('editor')">
+          <v-btn variant="text" prepend-icon="mdi-view-dashboard-outline" to="/editor" class="text-grey-darken-3 font-weight-medium rounded-pill me-1" active-class="bg-grey-lighten-4 text-green-darken-4">Panel Editor</v-btn>
         </template>
 
-        <v-btn variant="flat" color="red-darken-2" class="rounded-pill font-weight-bold px-6" prepend-icon="mdi-logout" @click="handleLogout">Salir</v-btn>
+        <v-btn variant="flat" color="blue-grey-darken-4" class="rounded-pill font-weight-bold px-6 ml-2 shadow-sm" prepend-icon="mdi-logout" @click="handleLogout">Salir</v-btn>
       </div>
     </v-app-bar>
 
@@ -47,16 +47,24 @@ const { user, token, logout } = useAuth()
 
 const isAuthenticated = computed(() => !!token.value)
 // Dynamic role calculation that respects the ref user object and falls back to storage if needed
-const userRole = computed(() => {
-  if (user.value?.rol) return user.value.rol;
-  if (user.value?.role) return user.value.role;
+const userRoles = computed(() => {
+  let roles = [];
   
-  try {
-    const defaultData = JSON.parse(localStorage.getItem('user') || '{}');
-    return defaultData.rol || defaultData.role || null;
-  } catch {
-    return null;
+  if (user.value?.roles) roles = user.value.roles;
+  else if (user.value?.rol) roles = [user.value.rol];
+  else if (user.value?.role) roles = [user.value.role];
+  else {
+    try {
+      const defaultData = JSON.parse(localStorage.getItem('user') || '{}');
+      if (defaultData.roles) roles = defaultData.roles;
+      else if (defaultData.rol) roles = [defaultData.rol];
+      else if (defaultData.role) roles = [defaultData.role];
+    } catch {
+      // do nothing
+    }
   }
+
+  return Array.isArray(roles) ? roles : [roles];
 })
 
 const handleLogout = () => {
