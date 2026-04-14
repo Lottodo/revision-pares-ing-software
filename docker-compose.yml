@@ -12,7 +12,7 @@ services:
     command: npm run start:backend
     environment:
       - PORT=3000
-      - MONGO_URI=mongodb://mongo:27017/peerreview
+      - MONGO_URI=mongodb://mongo:27017/RevisionPares
     depends_on:
       - mongo
 
