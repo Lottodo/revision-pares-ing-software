@@ -121,11 +121,13 @@ const handleLogin = async () => {
   const userData = await login(form.username, form.password)
 
   if (userData) {
-    // Redirigir según el rol
-    const rol = (userData.rol || userData.role || '').toLowerCase()
-    if (rol === 'editor') {
+    // Redirigir según los roles (arreglo)
+    const roles = userData.roles || []
+    if (roles.includes('administrador')) {
+      router.push('/admin')
+    } else if (roles.includes('editor')) {
       router.push('/editor')
-    } else if (rol === 'revisor') {
+    } else if (roles.includes('revisor')) {
       router.push('/articulos-asignados')
     } else {
       router.push('/subir-articulo')
