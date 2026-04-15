@@ -1,22 +1,31 @@
-@import './base.css';
+body, html {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  background-color: #F8FAFC !important; /* Slate 50 para un fondo sumamente limpio */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
 
 #app {
-  max-width: 1280px;
+  max-width: 100%;
   margin: 0 auto;
-  padding: 2rem;
-  font-weight: normal;
+  min-height: 100vh;
 }
 
-a,
-.green {
-  text-decoration: none;
-  color: hsla(160, 100%, 37%, 1);
-  transition: 0.4s;
-  padding: 3px;
+/* Tipografía Corporativa */
+.text-h1, .text-h2, .text-h3, .text-h4, .text-h5, .text-h6 {
+  font-family: 'Inter', sans-serif !important;
+  letter-spacing: -0.02em !important;
 }
 
-@media (hover: hover) {
-  a:hover {
-    background-color: hsla(160, 100%, 37%, 0.2);
-  }
-}
+/* Sombras refinadas (menos pronunciadas) */
+.shadow-sm { box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05) !important; }
+.shadow-md { box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03) !important; }
+
+/* Bordes limpios */
+.border-subtle { border: 1px solid #E2E8F0 !important; }
+
+/* Acentos globales para botones planos en caso de necesitar consistencia */
+.bg-corporate-dark { background-color: #0F172A !important; color: white !important; }
+
+/* Reset de links feos */
+a { text-decoration: none; transition: 0.2s; }

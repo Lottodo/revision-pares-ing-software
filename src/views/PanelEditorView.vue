@@ -1,13 +1,16 @@
 <template>
   <v-container fluid class="pa-md-8 pa-4 max-width-container">
     <v-card class="elevation-3 mb-8 w-100 rounded-xl overflow-hidden">
-      <!-- Gradient Header -->
-      <v-toolbar color="transparent" flat class="bg-gradient-header px-4">
-        <v-toolbar-title class="text-white font-weight-black text-h5">
+      <v-toolbar color="white" flat class="border-b px-4">
+        <v-toolbar-title class="text-grey-darken-4 font-weight-black text-h5">
           Panel de Editor
         </v-toolbar-title>
+        <v-spacer></v-spacer>
+        <v-btn variant="outlined" color="green-darken-4" class="font-weight-bold rounded-pill shadow-sm" prepend-icon="mdi-account-cog" @click="abrirGestorRoles">
+          Gestor de Roles
+        </v-btn>
       </v-toolbar>
-      <v-card-text class="pa-md-8 pa-6">
+      <v-card-text class="pa-md-8 pa-6 bg-white">
         <p class="text-body-1 text-grey-darken-2 font-weight-medium">
           Asigna al menos 2 revisores estratégicos a cada manuscrito. La decisión final "Aceptar/Rechazar" estará bloqueada hasta que todos los revisores emitan su veredicto.
         </p>
@@ -140,8 +143,8 @@
 
         <v-card v-else class="elevation-4 rounded-xl sticky-panel flex-grow-1 border">
           <v-card-text class="pa-6">
-            <div class="bg-blue-grey-lighten-5 pa-4 rounded-lg mb-6 border">
-                <span class="text-caption text-uppercase text-blue-grey-darken-2 font-weight-black tracking-wide">Foco de Asignación</span>
+            <div class="bg-grey-lighten-4 pa-4 rounded-lg mb-6 border">
+                <span class="text-caption text-uppercase text-grey-darken-1 font-weight-bold tracking-wide">Foco de Asignación</span>
                 <p class="text-h6 mt-1 font-weight-black text-grey-darken-4 lh-tight">
                   {{ articuloSeleccionado.titulo }}
                 </p>
@@ -217,6 +220,41 @@
         </v-card>
       </v-col>
     </v-row>
+
+    <!-- Dialog Gestor Manual de Roles -->
+    <v-dialog v-model="mostrarGestorRoles" max-width="650px">
+      <v-card class="rounded-xl">
+        <v-toolbar color="white" class="px-4 border-b" flat>
+          <v-icon color="grey-darken-3" class="mr-3">mdi-shield-account</v-icon>
+          <v-toolbar-title class="text-grey-darken-4 font-weight-bold">Asignación Manual de Multiroles</v-toolbar-title>
+          <v-spacer></v-spacer>
+          <v-btn icon="mdi-close" color="grey-darken-2" variant="text" @click="mostrarGestorRoles = false"></v-btn>
+        </v-toolbar>
+        <v-card-text class="pa-6">
+          <v-alert v-if="msjGestor" :type="msjGestorTipo" variant="tonal" class="mb-4 font-weight-medium" density="compact">{{ msjGestor }}</v-alert>
+          <p class="text-caption text-grey-darken-1 mb-4">Selecciona los roles que desees otorgar a cada usuario en tiempo real. Cuidado al revocar accesos administrativos.</p>
+          
+          <v-list lines="two" bg-color="transparent" class="pa-0">
+            <v-list-item v-for="user in todosUsuarios" :key="user._id" class="mb-3 border rounded-lg bg-grey-lighten-5 pa-3">
+              <v-list-item-title class="font-weight-bold text-h6 text-grey-darken-4 mb-1">
+                {{ user.username }} 
+                <span class="text-body-2 text-grey-darken-1 font-weight-regular ml-2">{{ user.email }}</span>
+              </v-list-item-title>
+              
+              <div class="d-flex align-center flex-wrap gap-2 mt-2">
+                <v-checkbox-btn v-model="user.rolesTemp" value="autor" label="Autor" color="primary" class="mr-4"></v-checkbox-btn>
+                <v-checkbox-btn v-model="user.rolesTemp" value="revisor" label="Revisor" color="green-darken-2" class="mr-4"></v-checkbox-btn>
+                <v-checkbox-btn v-model="user.rolesTemp" value="editor" label="Editor" color="red-darken-2" class="mr-4"></v-checkbox-btn>
+                <v-spacer></v-spacer>
+                <v-btn size="small" color="blue-grey-darken-3" class="font-weight-bold text-white rounded-pill px-4" elevation="2" @click="guardarRolesManual(user)">
+                  Aplicar
+                </v-btn>
+              </div>
+            </v-list-item>
+          </v-list>
+        </v-card-text>
+      </v-card>
+    </v-dialog>
   </v-container>
 </template>
 
@@ -229,6 +267,12 @@ const cargando = ref(true);
 const articuloSeleccionado = ref(null);
 const mensajeError = ref('');
 const mensajeExito = ref('');
+
+// Estado para Gestor de Roles
+const mostrarGestorRoles = ref(false);
+const todosUsuarios = ref([]);
+const msjGestor = ref('');
+const msjGestorTipo = ref('info');
 
 const headersRevisores = [
   { title: 'Revisor', key: 'nombre', align: 'start' },
@@ -404,16 +448,65 @@ const decidirArticulo = async (articulo, decision) => {
   }
 };
 
+// Acciones Manuales de Roles
+const abrirGestorRoles = async () => {
+  msjGestor.value = '';
+  mostrarGestorRoles.value = true;
+  try {
+    const token = localStorage.getItem('token');
+    const res = await fetch('/api/usuarios', { headers: { 'Authorization': `Bearer ${token}` } });
+    if (res.ok) {
+      const data = await res.json();
+      // Clonar los roles para la vista (modificables temporalmente)
+      todosUsuarios.value = data.map(u => ({ ...u, rolesTemp: [...u.roles] }));
+    } else {
+      msjGestor.value = 'No se pudieron cargar los usuarios.';
+      msjGestorTipo.value = 'error';
+    }
+  } catch (e) {
+    msjGestor.value = 'Fallo de red al solicitar usuarios.';
+    msjGestorTipo.value = 'error';
+  }
+};
+
+const guardarRolesManual = async (user) => {
+  if (!user.rolesTemp || user.rolesTemp.length === 0) {
+    msjGestorTipo.value = 'error';
+    msjGestor.value = `Error: ${user.username} debe tener al menos un rol (ej. autor).`;
+    return;
+  }
+  try {
+    const token = localStorage.getItem('token');
+    const res = await fetch(`/api/usuarios/${user._id}/roles`, {
+      method: 'PUT',
+      headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ roles: user.rolesTemp })
+    });
+    
+    if (res.ok) {
+      const data = await res.json();
+      user.roles = [...data.roles]; // consolidar cambios
+      msjGestorTipo.value = 'success';
+      msjGestor.value = `¡Roles reales de ${user.username} actualizados con éxito a [${data.roles.join(', ')}]!`;
+      // Refrescar lista de revisores por si hubo cambios
+      await fetchPanelData();
+    } else {
+      const errorData = await res.json();
+      msjGestorTipo.value = 'error';
+      msjGestor.value = errorData.error || 'Error al guardar.';
+    }
+  } catch (e) {
+    msjGestorTipo.value = 'error';
+    msjGestor.value = 'Fallo guardando roles.';
+  }
+};
+
 onMounted(() => {
     fetchPanelData();
 });
 </script>
 
 <style scoped>
-.bg-gradient-header {
-  background: linear-gradient(135deg, #0f3e2b 0%, #1a5c3a 100%);
-}
-
 .lh-tight {
   line-height: 1.2 !important;
 }

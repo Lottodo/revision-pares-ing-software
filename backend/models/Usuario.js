@@ -19,11 +19,11 @@ const usuarioSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
-    rol: {
-      type: String,
+    roles: {
+      type: [String],
       enum: ['autor', 'revisor', 'editor'],
       required: true,
-      default: 'autor',
+      default: ['autor'],
     },
     activo: {
       type: Boolean,

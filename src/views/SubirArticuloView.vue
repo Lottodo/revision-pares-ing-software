@@ -1,14 +1,14 @@
 <template>
   <v-container fluid class="pa-md-8 pa-4 d-flex justify-center flex-grow-1 align-center max-width-container">
     <v-card class="elevation-4 w-100 rounded-xl overflow-hidden border-card" max-width="700">
-      <v-toolbar color="transparent" flat class="bg-gradient-header px-4">
-        <v-toolbar-title class="text-white font-weight-black text-h5">
-          <v-icon start size="28" class="mr-2">mdi-cloud-upload-outline</v-icon>
+      <v-toolbar color="white" flat class="border-b px-4">
+        <v-toolbar-title class="text-grey-darken-4 font-weight-black text-h5">
+          <v-icon start size="28" class="mr-2 text-green-darken-4">mdi-cloud-upload-outline</v-icon>
           Subir Manuscrito
         </v-toolbar-title>
       </v-toolbar>
 
-      <v-card-text class="pa-md-10 pa-6">
+      <v-card-text class="pa-md-10 pa-6 bg-white">
         <p class="text-body-1 text-grey-darken-2 mb-8 font-weight-medium">
           Diligencia el formulario de postulación. Asegúrate de que el documento adjunto no contenga firmas ni datos incrustados que vulneren el ciego doble.
         </p>
@@ -21,7 +21,6 @@
             variant="outlined"
             density="comfortable"
             class="mb-4 text-body-1"
-            bg-color="grey-lighten-4"
             required
             hide-details="auto"
           ></v-text-field>
@@ -34,7 +33,6 @@
             density="comfortable"
             rows="5"
             class="mb-4 text-body-1"
-            bg-color="grey-lighten-4"
             required
             hide-details="auto"
           ></v-textarea>
@@ -74,12 +72,12 @@
 
           <v-btn
             type="submit"
-            color="green-darken-3"
-            class="font-weight-black mt-8 text-white rounded-pill px-8"
+            color="green-darken-4"
+            class="font-weight-black mt-8 text-white rounded-pill px-8 shadow-sm"
             size="x-large"
             block
             :loading="cargando"
-            elevation="2"
+            elevation="0"
           >
             Enviar Postulación
             <v-icon end size="20" class="ml-2">mdi-send</v-icon>

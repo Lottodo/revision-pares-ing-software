@@ -1,14 +1,14 @@
 <template>
   <v-container fluid class="pa-md-8 pa-4 max-width-container">
     <v-card class="elevation-3 w-100 rounded-xl overflow-hidden border-card">
-      <v-toolbar color="transparent" flat class="bg-gradient-header px-4">
-        <v-toolbar-title class="text-white font-weight-black text-h5">
-          <v-icon start size="28" class="mr-2">mdi-text-box-check-outline</v-icon>
+      <v-toolbar color="white" flat class="border-b px-4">
+        <v-toolbar-title class="text-grey-darken-4 font-weight-black text-h5">
+          <v-icon start size="28" class="mr-2 text-green-darken-4">mdi-text-box-check-outline</v-icon>
           Estado de tus Manuscritos
         </v-toolbar-title>
       </v-toolbar>
 
-      <v-card-text class="pa-md-8 pa-6">
+      <v-card-text class="pa-md-8 pa-6 bg-white">
         <p class="text-body-1 text-grey-darken-2 mb-8 font-weight-medium">
           Rastrea el progreso de tus postulaciones. Nuestro staff revisa cada manuscrito bajo la estricta política de doble ciego.
         </p>
@@ -124,10 +124,6 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.bg-gradient-header {
-  background: linear-gradient(135deg, #0f3e2b 0%, #1a5c3a 100%);
-}
-
 .border-card {
   border: 1px solid rgba(0,0,0,0.06);
 }
