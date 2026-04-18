@@ -21,7 +21,7 @@ const usuarioSchema = new mongoose.Schema(
     },
     roles: {
       type: [String],
-      enum: ['autor', 'revisor', 'editor'],
+      enum: ['autor', 'revisor', 'editor', 'administrador'],
       required: true,
       default: ['autor'],
     },

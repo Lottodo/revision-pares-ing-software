@@ -7,21 +7,32 @@
       
       <v-spacer></v-spacer>
 
-      <div class="d-flex align-center mr-4 gap-2">
-        <template v-if="userRoles.includes('autor')">
-          <v-btn variant="text" prepend-icon="mdi-upload" to="/subir-articulo" class="text-grey-darken-3 font-weight-medium rounded-pill me-1" active-class="bg-grey-lighten-4 text-green-darken-4">Subir Artículo</v-btn>
-          <v-btn variant="text" prepend-icon="mdi-format-list-checks" to="/estado-articulos" class="text-grey-darken-3 font-weight-medium rounded-pill me-1" active-class="bg-grey-lighten-4 text-green-darken-4">Tus Manuscritos</v-btn>
-        </template>
+      <div 
+        ref="scrollContainer"
+        class="nav-scroll-container d-flex align-center mr-4"
+        @scroll="handleScroll"
+        :style="navMaskStyle"
+      >
+        <div class="d-flex align-center gap-2 px-2">
+          <template v-if="userRoles.includes('autor')">
+            <v-btn variant="text" prepend-icon="mdi-upload" to="/subir-articulo" class="text-grey-darken-3 font-weight-medium rounded-pill me-1" active-class="bg-grey-lighten-4 text-green-darken-4">Subir Artículo</v-btn>
+            <v-btn variant="text" prepend-icon="mdi-format-list-checks" to="/estado-articulos" class="text-grey-darken-3 font-weight-medium rounded-pill me-1" active-class="bg-grey-lighten-4 text-green-darken-4">Tus Manuscritos</v-btn>
+          </template>
 
-        <template v-if="userRoles.includes('revisor')">
-          <v-btn variant="text" prepend-icon="mdi-text-box-search-outline" to="/articulos-asignados" class="text-grey-darken-3 font-weight-medium rounded-pill me-1" active-class="bg-grey-lighten-4 text-green-darken-4">Tareas Revisor</v-btn>
-        </template>
+          <template v-if="userRoles.includes('revisor')">
+            <v-btn variant="text" prepend-icon="mdi-text-box-search-outline" to="/articulos-asignados" class="text-grey-darken-3 font-weight-medium rounded-pill me-1" active-class="bg-grey-lighten-4 text-green-darken-4">Tareas Revisor</v-btn>
+          </template>
 
-        <template v-if="userRoles.includes('editor')">
-          <v-btn variant="text" prepend-icon="mdi-view-dashboard-outline" to="/editor" class="text-grey-darken-3 font-weight-medium rounded-pill me-1" active-class="bg-grey-lighten-4 text-green-darken-4">Panel Editor</v-btn>
-        </template>
+          <template v-if="userRoles.includes('editor')">
+            <v-btn variant="text" prepend-icon="mdi-view-dashboard-outline" to="/editor" class="text-grey-darken-3 font-weight-medium rounded-pill me-1" active-class="bg-grey-lighten-4 text-green-darken-4">Panel Editor</v-btn>
+          </template>
 
-        <v-btn variant="flat" color="blue-grey-darken-4" class="rounded-pill font-weight-bold px-6 ml-2 shadow-sm" prepend-icon="mdi-logout" @click="handleLogout">Salir</v-btn>
+          <template v-if="userRoles.includes('administrador')">
+            <v-btn variant="text" prepend-icon="mdi-shield-crown-outline" to="/admin" class="text-grey-darken-3 font-weight-medium rounded-pill me-1" active-class="bg-grey-lighten-4 text-deep-purple-darken-2">Admin</v-btn>
+          </template>
+
+          <v-btn variant="flat" color="blue-grey-darken-4" class="rounded-pill font-weight-bold px-6 ml-2 shadow-sm" prepend-icon="mdi-logout" @click="handleLogout">Salir</v-btn>
+        </div>
       </div>
     </v-app-bar>
 
@@ -38,12 +49,15 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuth } from '@/composables/useAuth'
 
 const router = useRouter()
 const { user, token, logout } = useAuth()
+
+const scrollContainer = ref(null)
+const scrollPos = ref({ left: 0, max: 0 })
 
 const isAuthenticated = computed(() => !!token.value)
 // Dynamic role calculation that respects the ref user object and falls back to storage if needed
@@ -70,6 +84,41 @@ const userRoles = computed(() => {
 const handleLogout = () => {
   logout()
 }
+
+// Lógica de scroll para el fade inteligente
+const handleScroll = (e) => {
+  const el = e.target
+  scrollPos.value = {
+    left: el.scrollLeft,
+    max: el.scrollWidth - el.clientWidth
+  }
+}
+
+const navMaskStyle = computed(() => {
+  const { left, max } = scrollPos.value
+  if (max <= 0) return {}
+
+  const showLeft = left > 10
+  const showRight = left < max - 10
+
+  if (showLeft && showRight) {
+    return { maskImage: 'linear-gradient(to right, transparent, black 15%, black 85%, transparent 100%)', webkitMaskImage: 'linear-gradient(to right, transparent, black 15%, black 85%, transparent 100%)' }
+  } else if (showLeft) {
+    return { maskImage: 'linear-gradient(to right, transparent, black 15%)', webkitMaskImage: 'linear-gradient(to right, transparent, black 15%)' }
+  } else if (showRight) {
+    return { maskImage: 'linear-gradient(to right, black 85%, transparent 100%)', webkitMaskImage: 'linear-gradient(to right, black 85%, transparent 100%)' }
+  }
+  return {}
+})
+
+// Inicializar scroll al montar
+onMounted(() => {
+  if (scrollContainer.value) {
+    setTimeout(() => {
+      handleScroll({ target: scrollContainer.value })
+    }, 500)
+  }
+})
 </script>
 
 <style>
@@ -95,6 +144,24 @@ body {
 
 .bg-surface {
   background-color: #FAFAFA;
+}
+
+/* Nav scrolling for mobile */
+.nav-scroll-container {
+  max-width: calc(100vw - 180px); /* Deja espacio para el título */
+  overflow-x: auto;
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE/Edge */
+  transition: mask-image 0.3s ease;
+}
+
+.nav-scroll-container::-webkit-scrollbar {
+  display: none; /* Chrome/Safari */
+}
+
+.nav-scroll-container > div {
+  white-space: nowrap;
+  flex-wrap: nowrap;
 }
 
 /* Page transitions */

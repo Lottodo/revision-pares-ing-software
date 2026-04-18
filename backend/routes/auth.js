@@ -66,7 +66,8 @@ router.post('/register', async (req, res) => {
     const nuevoUsuario = new Usuario({
       username: username.trim(),
       email: email.trim().toLowerCase(),
-      roles: rol || roles || ['autor']
+      passwordHash,
+      roles: roles || ['autor']
     });
     
     await nuevoUsuario.save();
