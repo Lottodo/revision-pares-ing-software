@@ -1,80 +1,219 @@
-import mongoose from 'mongoose';
+import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
-import dotenv from 'dotenv';
-import Usuario from '../models/Usuario.js';
 
-// Si ejecutamos "node backend/scripts/seed.js" desde root, el env está en "backend/.env"
-// Si ejecutamos "node scripts/seed.js" desde "backend/", el env está en "./.env"
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+const prisma = new PrismaClient();
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const envPath = path.resolve(__dirname, '../.env');
+async function seed() {
+  console.log("\n[Seed QA] 🚀 Iniciando...\n");
 
-dotenv.config({ path: envPath });
+  // =========================
+  // 🧹 LIMPIEZA (ORDEN CORRECTO)
+  // =========================
+  console.log("[Seed QA] Limpiando...");
 
-const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/peerreview';
+  await prisma.review.deleteMany();
+  await prisma.assignment.deleteMany();
+  await prisma.paperHistory.deleteMany();
+  await prisma.paperVersion.deleteMany();
+  await prisma.paper.deleteMany();
+  await prisma.eventUser.deleteMany();
+  await prisma.event.deleteMany();
+  await prisma.user.deleteMany();
 
-const seedDatabase = async () => {
-  try {
-    await mongoose.connect(MONGO_URI);
-    console.log(`[Seed] Conectado a MongoDB en ${MONGO_URI}`);
+  console.log("[Seed QA] ✓ Base limpia\n");
 
-    // Limpiar usuarios existentes
-    await Usuario.deleteMany({});
-    console.log('[Seed] Tabla de usuarios limpiada.');
+  // =========================
+  // 🔐 PASSWORD
+  // =========================
+  const passwordHash = await bcrypt.hash("1234", 10);
 
-    const salt = await bcrypt.genSalt(10);
-    const passwordHash = await bcrypt.hash('1234', salt);
+  // =========================
+  // 👥 USUARIOS
+  // =========================
+  console.log("[Seed QA] Creando usuarios...");
 
-    const usuariosPrueba = [
-      {
-        username: 'admin',
-        email: 'admin@uabc.edu.mx',
-        passwordHash,
-        roles: ['administrador'],
-      },
-      {
-        username: 'autor1',
-        email: 'autor1@uabc.edu.mx',
-        passwordHash,
-        roles: ['autor'],
-      },
-      {
-        username: 'revisor1',
-        email: 'revisor1@uabc.edu.mx',
-        passwordHash,
-        roles: ['revisor'],
-      },
-      {
-        username: 'revisor2',
-        email: 'revisor2@uabc.edu.mx',
-        passwordHash,
-        roles: ['revisor'],
-      },
-      {
-        username: 'editor1',
-        email: 'editor1@uabc.edu.mx',
-        passwordHash,
-        roles: ['editor'],
-      },
-      {
-        username: 'multiusuario',
-        email: 'multiusuario@uabc.edu.mx',
-        passwordHash,
-        roles: ['autor', 'revisor', 'editor'],
-      }
-    ];
+  const admin = await prisma.user.create({
+    data: {
+      username: "admin_root",
+      email: "admin@qa.com",
+      passwordHash
+    }
+  });
 
-    await Usuario.insertMany(usuariosPrueba);
-    console.log('[Seed] Usuarios insertados correctamente (incluyendo admin y revisor2).');
+  const autor = await prisma.user.create({
+    data: {
+      username: "autor_multi",
+      email: "autor@qa.com",
+      passwordHash
+    }
+  });
 
-    process.exit(0);
-  } catch (error) {
-    console.error('[Seed] Error populando la base de datos:', error);
-    process.exit(1);
-  }
-};
+  const editor = await prisma.user.create({
+    data: {
+      username: "editor_multi",
+      email: "editor@qa.com",
+      passwordHash
+    }
+  });
 
-seedDatabase();
+  const revisor = await prisma.user.create({
+    data: {
+      username: "revisor_multi",
+      email: "revisor@qa.com",
+      passwordHash
+    }
+  });
+
+  const multi = await prisma.user.create({
+    data: {
+      username: "multi_extremo",
+      email: "multi@qa.com",
+      passwordHash
+    }
+  });
+
+  console.log("[Seed QA] ✓ Usuarios creados\n");
+
+  // =========================
+  // 🏛️ EVENTOS
+  // =========================
+  console.log("[Seed QA] Creando eventos...");
+
+  const eventoA = await prisma.event.create({
+    data: {
+      slug: "ia-qa-2026",
+      name: "Congreso IA QA 2026"
+    }
+  });
+
+  const eventoB = await prisma.event.create({
+    data: {
+      slug: "sw-qa-2026",
+      name: "Simposio Software QA 2026"
+    }
+  });
+
+  const eventoC = await prisma.event.create({
+    data: {
+      slug: "redes-qa-2026",
+      name: "Taller Redes QA 2026"
+    }
+  });
+
+  console.log("[Seed QA] ✓ Eventos creados\n");
+
+  // =========================
+  // 🎭 ROLES
+  // =========================
+  console.log("[Seed QA] Asignando roles...");
+
+  await prisma.eventUser.createMany({
+    data: [
+      // ADMIN
+      { userId: admin.id, eventId: eventoA.id, role: "ADMIN" },
+      { userId: admin.id, eventId: eventoB.id, role: "ADMIN" },
+      { userId: admin.id, eventId: eventoC.id, role: "ADMIN" },
+
+      // AUTOR
+      { userId: autor.id, eventId: eventoA.id, role: "AUTHOR" },
+      { userId: autor.id, eventId: eventoB.id, role: "AUTHOR" },
+
+      // EDITOR
+      { userId: editor.id, eventId: eventoB.id, role: "EDITOR" },
+      { userId: editor.id, eventId: eventoC.id, role: "EDITOR" },
+
+      // REVIEWER
+      { userId: revisor.id, eventId: eventoA.id, role: "REVIEWER" },
+      { userId: revisor.id, eventId: eventoC.id, role: "REVIEWER" },
+
+      // MULTI EXTREMO
+      { userId: multi.id, eventId: eventoA.id, role: "AUTHOR" },
+      { userId: multi.id, eventId: eventoB.id, role: "REVIEWER" },
+      { userId: multi.id, eventId: eventoC.id, role: "EDITOR" }
+    ]
+  });
+
+  console.log("[Seed QA] ✓ Roles asignados\n");
+
+  // =========================
+  // 📄 PAPERS
+  // =========================
+  console.log("[Seed QA] Creando papers...");
+
+  const paper1 = await prisma.paper.create({
+    data: {
+      title: "Paper QA Autor",
+      abstract: "Prueba QA",
+      documentUrl: "/uploads/test1.pdf",
+      eventId: eventoA.id,
+      authorId: autor.id
+    }
+  });
+
+  const paper2 = await prisma.paper.create({
+    data: {
+      title: "Paper QA Multi",
+      abstract: "Prueba extrema",
+      documentUrl: "/uploads/test2.pdf",
+      status: "UNDER_REVIEW",
+      eventId: eventoB.id,
+      authorId: multi.id
+    }
+  });
+
+  console.log("[Seed QA] ✓ Papers creados\n");
+
+  // =========================
+  // 📋 ASIGNACIÓN
+  // =========================
+  console.log("[Seed QA] Creando asignación...");
+
+  const assignment = await prisma.assignment.create({
+    data: {
+      paperId: paper2.id,
+      reviewerId: revisor.id,
+      status: "IN_PROGRESS"
+    }
+  });
+
+  console.log("[Seed QA] ✓ Asignación creada\n");
+
+  // =========================
+  // ⭐ REVIEW
+  // =========================
+  console.log("[Seed QA] Creando review...");
+
+  await prisma.review.create({
+    data: {
+      paperId: paper2.id,
+      reviewerId: revisor.id,
+      assignmentId: assignment.id,
+      verdict: "MINOR_CHANGES",
+      originality: 4,
+      methodologicalRigor: 4,
+      writingQuality: 3,
+      relevance: 5,
+      comments: "Review QA inicial"
+    }
+  });
+
+  console.log("[Seed QA] ✓ Review creada\n");
+
+  // =========================
+  // 📊 FINAL
+  // =========================
+  console.log("\n━━━━━━━━━━━━━━━━━━━━━━");
+  console.log("✅ SEED LISTO");
+  console.log("━━━━━━━━━━━━━━━━━━━━━━");
+
+  console.log("\nUsuarios:");
+  console.log("admin_root / 1234");
+  console.log("autor_multi / 1234");
+  console.log("editor_multi / 1234");
+  console.log("revisor_multi / 1234");
+  console.log("multi_extremo / 1234\n");
+}
+
+seed()
+  .catch(e => console.error(e))
+  .finally(() => prisma.$disconnect());
