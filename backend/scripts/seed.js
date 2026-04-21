@@ -1,150 +1,139 @@
+// backend/scripts/seed.js
+
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
 
 async function seed() {
-  console.log("\n[Seed QA] 🚀 Iniciando...\n");
+  console.log("\n🚀 Iniciando seed...\n");
 
   // =========================
-  // 🧹 LIMPIEZA (ORDEN CORRECTO)
+  // 🧹 LIMPIEZA (orden correcto por FK)
   // =========================
-  console.log("[Seed QA] Limpiando...");
+  console.log("🧹 Limpiando base de datos...");
 
   await prisma.review.deleteMany();
   await prisma.assignment.deleteMany();
-  await prisma.paperHistory.deleteMany();
   await prisma.paperVersion.deleteMany();
+  await prisma.paperHistory.deleteMany();
   await prisma.paper.deleteMany();
   await prisma.eventUser.deleteMany();
   await prisma.event.deleteMany();
   await prisma.user.deleteMany();
 
-  console.log("[Seed QA] ✓ Base limpia\n");
+  console.log("✔ Base de datos limpia\n");
 
   // =========================
   // 🔐 PASSWORD
   // =========================
-  const passwordHash = await bcrypt.hash("1234", 10);
+  const hashedPassword = await bcrypt.hash('1234', 10);
 
   // =========================
   // 👥 USUARIOS
   // =========================
-  console.log("[Seed QA] Creando usuarios...");
+  console.log("👥 Creando usuarios...");
 
   const admin = await prisma.user.create({
     data: {
-      username: "admin_root",
-      email: "admin@qa.com",
-      passwordHash
+      username: 'admin_root',
+      email: 'admin@qa.com',
+      passwordHash: hashedPassword
     }
   });
 
   const autor = await prisma.user.create({
     data: {
-      username: "autor_multi",
-      email: "autor@qa.com",
-      passwordHash
+      username: 'autor_multi',
+      email: 'autor@qa.com',
+      passwordHash: hashedPassword
     }
   });
 
   const editor = await prisma.user.create({
     data: {
-      username: "editor_multi",
-      email: "editor@qa.com",
-      passwordHash
+      username: 'editor_multi',
+      email: 'editor@qa.com',
+      passwordHash: hashedPassword
     }
   });
 
   const revisor = await prisma.user.create({
     data: {
-      username: "revisor_multi",
-      email: "revisor@qa.com",
-      passwordHash
+      username: 'revisor_multi',
+      email: 'revisor@qa.com',
+      passwordHash: hashedPassword
     }
   });
 
   const multi = await prisma.user.create({
     data: {
-      username: "multi_extremo",
-      email: "multi@qa.com",
-      passwordHash
+      username: 'multi_extremo',
+      email: 'multi@qa.com',
+      passwordHash: hashedPassword
     }
   });
 
-  console.log("[Seed QA] ✓ Usuarios creados\n");
+  console.log("✔ Usuarios creados\n");
 
   // =========================
   // 🏛️ EVENTOS
   // =========================
-  console.log("[Seed QA] Creando eventos...");
+  console.log("🏛️ Creando eventos...");
 
   const eventoA = await prisma.event.create({
-    data: {
-      slug: "ia-qa-2026",
-      name: "Congreso IA QA 2026"
-    }
+    data: { slug: 'ia-qa-2026', name: 'Congreso IA QA 2026' }
   });
 
   const eventoB = await prisma.event.create({
-    data: {
-      slug: "sw-qa-2026",
-      name: "Simposio Software QA 2026"
-    }
+    data: { slug: 'software-qa-2026', name: 'Simposio Software QA 2026' }
   });
 
   const eventoC = await prisma.event.create({
-    data: {
-      slug: "redes-qa-2026",
-      name: "Taller Redes QA 2026"
-    }
+    data: { slug: 'redes-qa-2026', name: 'Taller Redes QA 2026' }
   });
 
-  console.log("[Seed QA] ✓ Eventos creados\n");
+  console.log("✔ Eventos creados\n");
 
   // =========================
-  // 🎭 ROLES
+  // 🎭 ROLES (EventUser)
   // =========================
-  console.log("[Seed QA] Asignando roles...");
+  console.log("🎭 Asignando roles...");
 
   await prisma.eventUser.createMany({
     data: [
-      // ADMIN
-      { userId: admin.id, eventId: eventoA.id, role: "ADMIN" },
-      { userId: admin.id, eventId: eventoB.id, role: "ADMIN" },
-      { userId: admin.id, eventId: eventoC.id, role: "ADMIN" },
+      { userId: admin.id, eventId: eventoA.id, role: 'ADMIN' },
+      { userId: admin.id, eventId: eventoB.id, role: 'ADMIN' },
+      { userId: admin.id, eventId: eventoC.id, role: 'ADMIN' },
 
-      // AUTOR
-      { userId: autor.id, eventId: eventoA.id, role: "AUTHOR" },
-      { userId: autor.id, eventId: eventoB.id, role: "AUTHOR" },
+      { userId: autor.id, eventId: eventoA.id, role: 'AUTHOR' },
+      { userId: autor.id, eventId: eventoB.id, role: 'AUTHOR' },
 
-      // EDITOR
-      { userId: editor.id, eventId: eventoB.id, role: "EDITOR" },
-      { userId: editor.id, eventId: eventoC.id, role: "EDITOR" },
+      { userId: editor.id, eventId: eventoB.id, role: 'EDITOR' },
+      { userId: editor.id, eventId: eventoC.id, role: 'EDITOR' },
 
-      // REVIEWER
-      { userId: revisor.id, eventId: eventoA.id, role: "REVIEWER" },
-      { userId: revisor.id, eventId: eventoC.id, role: "REVIEWER" },
+      { userId: revisor.id, eventId: eventoA.id, role: 'REVIEWER' },
+      { userId: revisor.id, eventId: eventoC.id, role: 'REVIEWER' },
 
-      // MULTI EXTREMO
-      { userId: multi.id, eventId: eventoA.id, role: "AUTHOR" },
-      { userId: multi.id, eventId: eventoB.id, role: "REVIEWER" },
-      { userId: multi.id, eventId: eventoC.id, role: "EDITOR" }
+      { userId: multi.id, eventId: eventoA.id, role: 'AUTHOR' },
+      { userId: multi.id, eventId: eventoB.id, role: 'REVIEWER' },
+      { userId: multi.id, eventId: eventoC.id, role: 'EDITOR' },
     ]
   });
 
-  console.log("[Seed QA] ✓ Roles asignados\n");
+  console.log("✔ Roles asignados\n");
 
   // =========================
   // 📄 PAPERS
   // =========================
-  console.log("[Seed QA] Creando papers...");
+  console.log("📄 Creando papers...");
 
   const paper1 = await prisma.paper.create({
     data: {
-      title: "Paper QA Autor",
-      abstract: "Prueba QA",
-      documentUrl: "/uploads/test1.pdf",
+      title: 'Paper QA - Prueba Inicial',
+      abstract: 'Paper para pruebas QA',
+      documentUrl: 'http://example.com/paper1.pdf',
+      status: 'RECEIVED',
       eventId: eventoA.id,
       authorId: autor.id
     }
@@ -152,68 +141,63 @@ async function seed() {
 
   const paper2 = await prisma.paper.create({
     data: {
-      title: "Paper QA Multi",
-      abstract: "Prueba extrema",
-      documentUrl: "/uploads/test2.pdf",
-      status: "UNDER_REVIEW",
+      title: 'Paper QA - Multiusuario',
+      abstract: 'Paper del usuario extremo',
+      documentUrl: 'http://example.com/paper2.pdf',
+      status: 'UNDER_REVIEW',
       eventId: eventoB.id,
       authorId: multi.id
     }
   });
 
-  console.log("[Seed QA] ✓ Papers creados\n");
+  console.log("✔ Papers creados\n");
 
   // =========================
-  // 📋 ASIGNACIÓN
+  // 🧪 REVIEW (correcto según schema)
   // =========================
-  console.log("[Seed QA] Creando asignación...");
+  console.log("🧪 Creando reviews...");
 
   const assignment = await prisma.assignment.create({
     data: {
       paperId: paper2.id,
       reviewerId: revisor.id,
-      status: "IN_PROGRESS"
+      status: 'IN_PROGRESS'
     }
   });
-
-  console.log("[Seed QA] ✓ Asignación creada\n");
-
-  // =========================
-  // ⭐ REVIEW
-  // =========================
-  console.log("[Seed QA] Creando review...");
 
   await prisma.review.create({
     data: {
       paperId: paper2.id,
       reviewerId: revisor.id,
       assignmentId: assignment.id,
-      verdict: "MINOR_CHANGES",
+      verdict: 'ACCEPT',
       originality: 4,
       methodologicalRigor: 4,
-      writingQuality: 3,
-      relevance: 5,
-      comments: "Review QA inicial"
+      writingQuality: 5,
+      relevance: 4,
+      comments: 'Review inicial de prueba'
     }
   });
 
-  console.log("[Seed QA] ✓ Review creada\n");
+  console.log("✔ Reviews creadas\n");
 
   // =========================
-  // 📊 FINAL
+  // 📊 RESULTADO
   // =========================
   console.log("\n━━━━━━━━━━━━━━━━━━━━━━");
-  console.log("✅ SEED LISTO");
+  console.log("✅ SEED COMPLETADO");
   console.log("━━━━━━━━━━━━━━━━━━━━━━");
 
-  console.log("\nUsuarios:");
-  console.log("admin_root / 1234");
-  console.log("autor_multi / 1234");
-  console.log("editor_multi / 1234");
-  console.log("revisor_multi / 1234");
-  console.log("multi_extremo / 1234\n");
+  console.log("\n👤 LOGIN TEST:");
+  console.log("admin@qa.com / 1234");
+  console.log("autor@qa.com / 1234");
+  console.log("revisor@qa.com / 1234\n");
 }
 
 seed()
-  .catch(e => console.error(e))
-  .finally(() => prisma.$disconnect());
+  .catch((e) => {
+    console.error("❌ Error en seed:", e);
+  })
+  .finally(async () => {
+    await prisma.$disconnect();
+  });

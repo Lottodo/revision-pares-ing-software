@@ -5,294 +5,202 @@ Plataforma de gestión de congresos académicos con revisión por pares doble ci
 
 ---
 
-## Arquitectura
+## 1. Requisitos Previos
 
+Para poder compilar y ejecutar este proyecto, necesitas tener instaladas las siguientes herramientas en tu computadora. Las instrucciones están pensadas para que cualquier persona, sin importar su experiencia previa, pueda seguirlas.
+
+### Opción A: Usando Docker (Recomendado y más fácil)
+Docker es una herramienta que empaqueta todo el software necesario (base de datos, backend, frontend) para que no tengas que instalar o configurar cada cosa por separado en tu sistema.
+- **Docker Desktop**: [Descargar e instalar Docker Desktop](https://www.docker.com/products/docker-desktop/).
+  - *Nota*: Asegúrate de que la aplicación Docker Desktop esté abierta y ejecutándose en segundo plano antes de continuar.
+- **Git**: [Descargar Git](https://git-scm.com/downloads) para poder descargar el código fuente.
+
+### Opción B: Instalación Manual (Sin Docker)
+Si prefieres no usar Docker, deberás instalar cada componente individualmente:
+- **Node.js**: [Descargar Node.js (Versión 20 o superior)](https://nodejs.org/). La instalación incluye `npm`, que es el gestor de paquetes que usaremos.
+- **MySQL 8**: [Descargar MySQL Community Server](https://dev.mysql.com/downloads/mysql/). Durante la instalación, asegúrate de recordar la contraseña que le asignes al usuario `root`.
+- **Git**: [Descargar Git](https://git-scm.com/downloads).
+
+---
+
+## 2. Instrucciones de Compilación Paso a Paso
+
+Sigue estos pasos cuidadosamente para poner en marcha el proyecto en tu máquina local.
+
+### Paso 1: Descargar el proyecto
+Abre la terminal de tu computadora (Símbolo del sistema, PowerShell en Windows o Terminal en macOS/Linux) y ejecuta los siguientes comandos para descargar y entrar a la carpeta del proyecto:
+```bash
+git clone <url-del-repositorio>
+cd revision-pares-ing-software
+```
+
+### Paso 2: Compilar y ejecutar (Elige una opción)
+
+#### Opción A: Ejecución con Docker (Recomendado)
+Esta es la forma más rápida y con menos probabilidades de error para hacer funcionar el proyecto.
+
+1. Asegúrate de tener **Docker Desktop** abierto y ejecutándose.
+2. En la terminal, dentro de la carpeta del proyecto, ejecuta el siguiente comando:
+   ```bash
+   docker compose up --build
+   ```
+3. **¡Listo!** Ahora solo debes esperar. La primera vez que ejecutes esto, Docker descargará todo lo necesario, creará la base de datos automáticamente, insertará datos de prueba y encenderá los servidores.
+4. El proceso termina cuando veas mensajes en la terminal indicando que los servicios están listos. No cierres esta terminal mientras quieras usar la aplicación.
+
+#### Opción B: Ejecución Manual (Sin Docker)
+Si elegiste instalar Node.js y MySQL por tu cuenta, sigue estos pasos:
+
+**1. Configurar la Base de Datos (MySQL)**
+Abre la terminal o tu gestor de MySQL (como MySQL Workbench) y crea la base de datos ejecutando este comando SQL:
+```sql
+CREATE DATABASE peerreview;
+```
+
+**2. Iniciar el Backend (Servidor de la API)**
+Abre una terminal y navega a la carpeta del backend:
+```bash
+cd backend
+```
+Instala todas las librerías necesarias:
+```bash
+npm install
+```
+Configura la conexión a la base de datos:
+1. En la carpeta `backend`, busca el archivo llamado `.env.example`.
+2. Haz una copia de ese archivo y renómbrala a `.env`.
+3. Abre el nuevo archivo `.env` con cualquier editor de texto y busca la línea que dice `DATABASE_URL`.
+4. Modifica esa línea para que tenga tu usuario y contraseña de MySQL. Por ejemplo, si tu contraseña de root es "secreta", la línea debería verse así:
+   `DATABASE_URL="mysql://root:secreta@localhost:3306/peerreview"`
+
+Prepara la base de datos y llénala con datos de prueba:
+```bash
+npx prisma migrate dev --name init
+npm run seed
+```
+Inicia el servidor backend:
+```bash
+npm run dev
+```
+*(El backend quedará corriendo en esta terminal. Déjala abierta y no la cierres).*
+
+**3. Iniciar el Frontend (La interfaz visual)**
+Abre **una nueva ventana o pestaña** en tu terminal y navega a la carpeta del frontend:
+```bash
+cd frontend
+```
+Instala las librerías necesarias:
+```bash
+npm install
+```
+Inicia la aplicación web:
+```bash
+npm run dev
+```
+
+---
+
+## 3. Direcciones de Acceso y Uso
+
+Una vez que hayas completado el Paso 2 (ya sea con Docker o Manual), abre tu navegador web favorito (Chrome, Firefox, Edge, etc.) y visita las siguientes direcciones:
+
+- **Aplicación Web (Frontend):** [http://localhost:5173](http://localhost:5173)
+- **Servidor de Datos (Backend):** [http://localhost:3000](http://localhost:3000)
+
+### Cuentas de prueba para iniciar sesión
+La aplicación ya viene con cuentas creadas para que puedas probarla inmediatamente.  
+**La contraseña para todas las cuentas es:** `1234`
+
+| Usuario       | Rol en Congreso IA 2025 | Rol en Simposio SW 2025 |
+|---------------|------------------------|------------------------|
+| `admin`       | Administrador          | Administrador          |
+| `editor_ia`   | Editor                 | —                      |
+| `editor_sw`   | —                      | Editor                 |
+| `revisor1`    | Revisor                | —                      |
+| `revisor2`    | Revisor                | Revisor                |
+| `autor1`      | Autor                  | Autor                  |
+| `multiusuario`| Autor                  | Revisor                |
+
+---
+
+## 4. Errores Comunes y Notas Adicionales
+
+Aquí tienes soluciones a los problemas más frecuentes que podrían ocurrir al intentar compilar o ejecutar el proyecto:
+
+### ❌ Error: `port is already allocated` o `address already in use`
+- **Causa:** El puerto 3000 (usado por el Backend) o el puerto 5173 (usado por el Frontend) ya está siendo ocupado por otro programa en tu computadora o por un intento anterior de correr este mismo proyecto que no se cerró correctamente.
+- **Solución:** Cierra todas las ventanas de terminal que tengas abiertas. Si estás usando Docker, ejecuta el comando `docker compose down` para forzar la detención de cualquier contenedor que haya quedado en segundo plano, y luego vuelve a intentar arrancar el proyecto.
+
+### ❌ Error en Docker: `docker daemon is not running` o `error during connect`
+- **Causa:** La aplicación de Docker no está encendida en tu computadora.
+- **Solución:** Abre la aplicación **Docker Desktop** desde tu menú de inicio y espera unos segundos hasta que el ícono (usualmente una ballena) indique que el motor está corriendo ("Engine running") antes de ejecutar los comandos en la terminal.
+
+### ❌ Error (Manual): `Can't connect to MySQL server on 'localhost'`
+- **Causa:** El servidor MySQL no está encendido en tu computadora, o los datos en tu archivo `.env` no apuntan al puerto correcto.
+- **Solución:** Verifica que el servicio de MySQL esté corriendo (En Windows, puedes buscar "Servicios" en el menú de inicio, buscar MySQL y darle a Iniciar).
+
+### ❌ Error (Manual): `PrismaClientInitializationError: Access denied for user`
+- **Causa:** La contraseña o el usuario de la base de datos en tu archivo `.env` son incorrectos.
+- **Solución:** Abre el archivo `.env` que creaste dentro de la carpeta `backend` y verifica cuidadosamente que la parte de la `DATABASE_URL` contenga el usuario y la contraseña correctos de tu instalación de MySQL.
+
+### ❌ Error en Docker: La aplicación se queda "cargando" y no avanza
+- **Causa:** Puede haber un conflicto con archivos temporales antiguos o una instalación previa corrupta.
+- **Solución:** Detén todo, borra los datos temporales e inicia de nuevo limpiamente ejecutando estos dos comandos:
+  ```bash
+  docker compose down -v
+  docker compose up --build
+  ```
+
+---
+
+## 5. Detalles Técnicos y Arquitectura (Para Desarrolladores)
+
+Si deseas modificar el código o entender cómo funciona por dentro, aquí tienes la información técnica del proyecto.
+
+### Arquitectura de Carpetas
 ```
 project/
 ├── backend/
 │   ├── src/
-│   │   ├── app.js                  # Express: middlewares + rutas
+│   │   ├── app.js                  # Express: middlewares + rutas principales
 │   │   ├── server.js               # Punto de entrada HTTP
-│   │   ├── config/
-│   │   │   ├── prisma.js           # Singleton cliente Prisma
-│   │   │   └── env.js              # Validación de variables de entorno
-│   │   ├── middleware/
-│   │   │   ├── auth.js             # verifyToken (JWT)
-│   │   │   ├── roles.js            # requireRole(), requireEventContext()
-│   │   │   ├── validate.js         # Wrapper Zod genérico
-│   │   │   ├── upload.js           # Multer — PDFs hasta 10MB
-│   │   │   └── errorHandler.js     # Catch global de Express
-│   │   ├── modules/
-│   │   │   ├── auth/               # Login, register, switch-event, /me
-│   │   │   ├── users/              # CRUD usuarios, roles por evento
-│   │   │   ├── events/             # CRUD congresos, stats
-│   │   │   ├── papers/             # Artículos con doble ciego
-│   │   │   └── reviews/            # Asignaciones + evaluaciones
-│   │   └── shared/
-│   │       ├── response.js         # Helpers HTTP (ok, fail, created…)
-│   │       └── history.js          # logHistory()
+│   │   ├── config/                 # Configuración de Prisma y Entorno
+│   │   ├── middleware/             # Seguridad (Autenticación JWT, Roles) y subidas (Multer)
+│   │   ├── modules/                # Módulos de negocio (Auth, Users, Events, Papers, Reviews)
+│   │   └── shared/                 # Helpers compartidos
 │   ├── prisma/
-│   │   └── schema.prisma           # Esquema relacional completo
+│   │   └── schema.prisma           # Esquema de la base de datos
 │   └── scripts/
-│       └── seed.js                 # Seed con 3 eventos, 11 usuarios, reviews
+│       └── seed.js                 # Script para llenar la base de datos con datos de prueba
 │
 ├── frontend/
 │   ├── src/
-│   │   ├── api/                    # Módulos Axios por recurso
-│   │   ├── stores/                 # Pinia: auth, papers, reviews
-│   │   ├── router/                 # Guards por rol y contexto de evento
-│   │   ├── views/                  # Login, EventSelector, Author, Reviewer, Editor, Admin
-│   │   └── components/             # Diálogos, cards, drawers reutilizables
-│   └── vite.config.js              # PWA + proxy de desarrollo
+│   │   ├── api/                    # Conexiones Axios al backend
+│   │   ├── stores/                 # Gestión de estado global (Pinia)
+│   │   ├── router/                 # Rutas y protección de pantallas por rol
+│   │   ├── views/                  # Vistas principales de la aplicación
+│   │   └── components/             # Componentes visuales reutilizables (Vuetify)
+│   └── vite.config.js              # Configuración del empaquetador Vite y PWA
 │
-└── docker-compose.yml
+└── docker-compose.yml              # Configuración de infraestructura Docker
 ```
 
----
-
-## Requisitos previos
-
-| Herramienta | Versión mínima |
-|-------------|----------------|
-| Docker      | 24+            |
-| Docker Compose | v2 (`docker compose`) |
-
-> Para desarrollo local sin Docker también necesitas: Node.js 20+, MySQL 8
-
----
-
-## Levantar con Docker (recomendado)
-
+### Comandos de utilidad en Docker
 ```bash
-# 1. Clonar y entrar al proyecto
-git clone <repo-url>
-cd project
-
-# 2. Arrancar todo (MySQL + backend + frontend)
-docker compose up --build
-
-# La primera vez el backend:
-#   - Ejecuta migraciones de Prisma
-#   - Corre el seed automáticamente
-#   - Arranca el servidor
-
-# Esperar ~30 segundos hasta ver:
-#   [Server] Backend corriendo en http://0.0.0.0:3000
-#   [Seed] ✅ Seed completado exitosamente.
-```
-
-### URLs de acceso
-
-| Servicio  | URL                        |
-|-----------|----------------------------|
-| Frontend  | http://localhost:5173      |
-| Backend   | http://localhost:3000      |
-| API Health| http://localhost:3000/api/health |
-
-### Detener
-
-```bash
-docker compose down          # detener contenedores
-docker compose down -v       # detener + borrar volúmenes (reset de BD)
-```
-
----
-
-## Desarrollo local (sin Docker)
-
-### Backend
-
-```bash
-cd backend
-
-# 1. Copiar variables de entorno
-cp .env.example .env
-# Editar .env con tu DATABASE_URL de MySQL local
-
-# 2. Instalar dependencias
-npm install
-
-# 3. Crear la base de datos en MySQL
-mysql -u root -p -e "CREATE DATABASE peerreview;"
-
-# 4. Ejecutar migraciones
-npx prisma migrate dev --name init
-
-# 5. Cargar datos de prueba
-npm run seed
-
-# 6. Iniciar en modo desarrollo (con --watch)
-npm run dev
-```
-
-### Frontend
-
-```bash
-cd frontend
-npm install
-npm run dev
-# → http://localhost:5173
-```
-
----
-
-## Cuentas de prueba
-
-> Todas usan **password: `1234`**
-
-| Usuario       | Rol en Congreso IA 2025 | Rol en Simposio SW 2025 |
-|---------------|------------------------|------------------------|
-| `admin`       | ADMIN                  | ADMIN                  |
-| `editor_ia`   | EDITOR                 | —                      |
-| `editor_sw`   | —                      | EDITOR                 |
-| `revisor1`    | REVIEWER               | —                      |
-| `revisor2`    | REVIEWER               | REVIEWER               |
-| `revisor3`    | —                      | REVIEWER               |
-| `autor1`      | AUTHOR                 | AUTHOR                 |
-| `autor2`      | AUTHOR                 | AUTHOR                 |
-| `autor3`      | AUTHOR                 | AUTHOR                 |
-| `multiusuario`| AUTHOR                 | REVIEWER               |
-
----
-
-## API — Referencia rápida
-
-### Autenticación
-
-```
-POST   /api/auth/register          Registro de usuario
-POST   /api/auth/login             Login { username, password, eventId? }
-POST   /api/auth/switch-event      Cambiar evento activo → nuevo token
-GET    /api/auth/me                Perfil del usuario autenticado
-POST   /api/auth/logout
-```
-
-### Eventos
-
-```
-GET    /api/events                 Listar todos
-GET    /api/events/:id             Detalle
-GET    /api/events/:id/stats       Stats (ADMIN/EDITOR)
-POST   /api/events                 Crear (ADMIN)
-PATCH  /api/events/:id             Editar (ADMIN)
-DELETE /api/events/:id             Desactivar (ADMIN)
-```
-
-### Usuarios y roles
-
-```
-GET    /api/users                           Listar (ADMIN)
-PATCH  /api/users/:id                       Editar (ADMIN)
-POST   /api/users/roles/assign              Asignar rol en evento (ADMIN)
-DELETE /api/users/roles/remove              Remover rol (ADMIN)
-GET    /api/users/by-event/:eventId         Miembros de un evento
-GET    /api/users/reviewers/:eventId        Revisores disponibles con carga
-```
-
-### Artículos (requieren token con eventId)
-
-```
-GET    /api/papers                    Ver los que corresponden según rol
-GET    /api/papers/:id                Detalle (con doble ciego para REVIEWER)
-POST   /api/papers                    Subir artículo PDF (AUTHOR)
-POST   /api/papers/:id/versions       Nueva versión PDF (AUTHOR)
-PATCH  /api/papers/:id/status         Cambiar estado (EDITOR/ADMIN)
-GET    /api/papers/:id/history        Historial de eventos
-```
-
-### Revisiones (requieren token con eventId)
-
-```
-GET    /api/reviews/my-assignments    Mis asignaciones (REVIEWER)
-POST   /api/reviews/submit            Enviar evaluación (REVIEWER)
-POST   /api/reviews/assignments       Asignar revisor (EDITOR/ADMIN)
-DELETE /api/reviews/assignments       Cancelar asignación (EDITOR/ADMIN)
-GET    /api/reviews/assignments/:pid  Asignaciones de un artículo
-GET    /api/reviews/paper/:pid        Evaluaciones (editor ve revisor; autor no)
-```
-
----
-
-## Flujo de trabajo completo
-
-```
-1. ADMIN crea evento
-2. ADMIN asigna roles a usuarios en ese evento
-3. AUTHOR sube artículo (PDF) → estado: RECEIVED
-4. EDITOR asigna 2 revisores → estado: UNDER_REVIEW
-5. REVIEWER lee PDF y envía evaluación con rúbrica
-6. EDITOR ve ambas evaluaciones y decide estado final
-7. AUTHOR recibe notificación de estado y puede subir nueva versión
-   si el estado es MINOR_CHANGES o MAJOR_CHANGES
-```
-
----
-
-## Comandos útiles
-
-```bash
-# Ver logs del backend en tiempo real
+# Ver los registros (logs) del backend en tiempo real
 docker compose logs -f backend
 
-# Resetear la base de datos y re-sembrar
+# Reiniciar por completo la base de datos y volver a insertar los datos de prueba
 docker compose exec backend npx prisma migrate reset --force
 
-# Abrir Prisma Studio (explorador visual de la BD)
+# Abrir Prisma Studio (Una interfaz web para ver y editar la base de datos directamente)
 cd backend && npx prisma studio
-
-# Re-correr solo el seed
-docker compose exec backend node scripts/seed.js
-
-# Inspeccionar la BD directamente
-docker compose exec mysql mysql -u appuser -papppass peerreview
 ```
 
----
+### API — Referencia rápida
+El backend expone una API RESTful. La mayoría de los endpoints (excepto login/registro) requieren un token JWT válido que se envía en el header `Authorization: Bearer <token>`.
 
-## Variables de entorno del backend
-
-| Variable       | Valor por defecto                        | Descripción                   |
-|----------------|------------------------------------------|-------------------------------|
-| `DATABASE_URL` | —                                        | **Obligatoria.** MySQL DSN    |
-| `JWT_SECRET`   | —                                        | **Obligatoria.** Clave JWT    |
-| `PORT`         | `3000`                                   | Puerto del servidor           |
-| `NODE_ENV`     | `development`                            | Entorno                       |
-| `UPLOADS_DIR`  | `./uploads`                              | Directorio de PDFs            |
-| `FRONTEND_URL` | `http://localhost:5173`                  | Origen permitido en CORS      |
-
----
-
-## Para el equipo de desarrollo
-
-### Flujo Git recomendado
-
-```
-main          → producción (Docker)
-develop       → integración
-feature/auth  → módulo auth
-feature/papers→ módulo papers
-```
-
-### Agregar un nuevo módulo
-
-```
-src/modules/nuevo-modulo/
-├── nuevo-modulo.routes.js      # rutas + middlewares
-├── nuevo-modulo.controller.js  # solo HTTP
-├── nuevo-modulo.service.js     # lógica de negocio + Prisma
-└── nuevo-modulo.validator.js   # schemas Zod
-```
-
-Luego montar en `src/app.js`:
-```js
-import nuevoRoutes from './modules/nuevo-modulo/nuevo-modulo.routes.js';
-app.use('/api/nuevo-modulo', nuevoRoutes);
-```
-
-### Convenciones de código
-
-- **Services:** no conocen `req`/`res`. Devuelven datos o lanzan `Error` con `.status`
-- **Controllers:** solo extraen datos del request, llaman al service, devuelven respuesta
-- **Validators:** schemas Zod exportados, aplicados con el middleware `validate()`
-- **Todos los datos filtrados por `eventId`** — nunca exponer datos entre eventos
-- **Doble ciego:** `authorId` nunca se incluye en respuestas a revisores
+- **Autenticación**: `/api/auth/register`, `/api/auth/login`, `/api/auth/switch-event`, `/api/auth/me`
+- **Eventos**: `/api/events` (CRUD completo para administradores)
+- **Usuarios**: `/api/users`, `/api/users/roles/assign`
+- **Artículos (Papers)**: `/api/papers` (Sube PDFs, gestiona versiones y estados)
+- **Revisiones**: `/api/reviews/my-assignments`, `/api/reviews/submit`, `/api/reviews/assignments`

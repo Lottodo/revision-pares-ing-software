@@ -32,7 +32,7 @@ services:
     ports:
       - "3000:3000"
     environment:
-      DATABASE_URL: mysql://appuser:apppass@mysql:3306/peerreview
+      DATABASE_URL: mysql://root:rootpass@mysql:3306/peerreview
       JWT_SECRET: congress_jwt_secret_change_in_production_32chars
       PORT: 3000
       NODE_ENV: development
