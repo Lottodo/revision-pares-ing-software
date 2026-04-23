@@ -1,0 +1,216 @@
+// prisma/schema.prisma
+// Sistema de Revisión de Congresos — PWA Doble Ciego
+// ORM: Prisma | DB: MySQL 8
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────────────────
+// ENUMS
+// ─────────────────────────────────────────
+
+enum Role {
+  AUTHOR
+  REVIEWER
+  EDITOR
+  ADMIN
+}
+
+enum PaperStatus {
+  RECEIVED
+  UNDER_REVIEW
+  MINOR_CHANGES
+  MAJOR_CHANGES
+  ACCEPTED
+  REJECTED
+}
+
+enum AssignmentStatus {
+  PENDING
+  IN_PROGRESS
+  EVALUATED
+  CANCELLED
+}
+
+enum Verdict {
+  ACCEPT
+  MINOR_CHANGES
+  MAJOR_CHANGES
+  REJECT
+}
+
+// ─────────────────────────────────────────
+// USUARIOS — identidad global del sistema
+// ─────────────────────────────────────────
+model User {
+  id           Int      @id @default(autoincrement())
+  username     String   @unique @db.VarChar(50)
+  email        String   @unique @db.VarChar(255)
+  passwordHash String   @db.VarChar(255)
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relaciones
+  eventRoles   EventUser[]
+  papers       Paper[]        @relation("AuthorPapers")
+  assignments  Assignment[]   @relation("ReviewerAssignments")
+  reviews      Review[]
+  historyItems PaperHistory[]
+
+  @@map("users")
+}
+
+// ─────────────────────────────────────────
+// EVENTOS — cada congreso es independiente
+// ─────────────────────────────────────────
+model Event {
+  id          Int       @id @default(autoincrement())
+  slug        String    @unique @db.VarChar(100)
+  name        String    @db.VarChar(200)
+  description String?   @db.Text
+  startDate   DateTime?
+  endDate     DateTime?
+  active      Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Relaciones
+  members EventUser[]
+  papers  Paper[]
+
+  @@map("events")
+}
+
+// ─────────────────────────────────────────
+// ROLES POR EVENTO — tabla pivote
+// Un mismo usuario puede tener roles distintos en distintos eventos.
+// Un usuario puede tener MÚLTIPLES roles en el mismo evento.
+// ─────────────────────────────────────────
+model EventUser {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  eventId   Int
+  role      Role
+  createdAt DateTime @default(now())
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  // Un usuario no puede tener el mismo rol dos veces en el mismo evento
+  @@unique([userId, eventId, role])
+  @@map("event_users")
+}
+
+// ─────────────────────────────────────────
+// ARTÍCULOS — aislados por evento
+// ─────────────────────────────────────────
+model Paper {
+  id          Int         @id @default(autoincrement())
+  eventId     Int
+  authorId    Int
+  title       String      @db.VarChar(200)
+  abstract    String      @db.Text
+  documentUrl String      @db.VarChar(500)
+  status      PaperStatus @default(RECEIVED)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  event       Event          @relation(fields: [eventId], references: [id])
+  author      User           @relation("AuthorPapers", fields: [authorId], references: [id])
+  versions    PaperVersion[]
+  assignments Assignment[]
+  reviews     Review[]
+  history     PaperHistory[]
+
+  @@index([eventId])
+  @@index([authorId])
+  @@map("papers")
+}
+
+// ─────────────────────────────────────────
+// VERSIONES DE ARTÍCULO
+// ─────────────────────────────────────────
+model PaperVersion {
+  id        Int      @id @default(autoincrement())
+  paperId   Int
+  version   Int      // 1, 2, 3...
+  url       String   @db.VarChar(500)
+  note      String?  @db.VarChar(500)
+  createdAt DateTime @default(now())
+
+  paper Paper @relation(fields: [paperId], references: [id], onDelete: Cascade)
+
+  @@unique([paperId, version])
+  @@map("paper_versions")
+}
+
+// ─────────────────────────────────────────
+// ASIGNACIONES — revisor asignado a artículo
+// ─────────────────────────────────────────
+model Assignment {
+  id         Int              @id @default(autoincrement())
+  paperId    Int
+  reviewerId Int
+  status     AssignmentStatus @default(PENDING)
+  deadline   DateTime?
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+
+  paper    Paper   @relation(fields: [paperId], references: [id], onDelete: Cascade)
+  reviewer User    @relation("ReviewerAssignments", fields: [reviewerId], references: [id])
+  review   Review?
+
+  // Un revisor no puede estar asignado dos veces al mismo artículo
+  @@unique([paperId, reviewerId])
+  @@index([reviewerId])
+  @@map("assignments")
+}
+
+// ─────────────────────────────────────────
+// EVALUACIONES — con rúbrica completa
+// ─────────────────────────────────────────
+model Review {
+  id                  Int      @id @default(autoincrement())
+  paperId             Int
+  reviewerId          Int
+  assignmentId        Int      @unique
+  verdict             Verdict
+  originality         Int      // 1–5
+  methodologicalRigor Int      // 1–5
+  writingQuality      Int      // 1–5
+  relevance           Int      // 1–5
+  comments            String   @db.Text
+  createdAt           DateTime @default(now())
+
+  paper      Paper      @relation(fields: [paperId], references: [id])
+  reviewer   User       @relation(fields: [reviewerId], references: [id])
+  assignment Assignment @relation(fields: [assignmentId], references: [id])
+
+  @@index([paperId])
+  @@map("reviews")
+}
+
+// ─────────────────────────────────────────
+// HISTORIAL — log inmutable de eventos
+// ─────────────────────────────────────────
+model PaperHistory {
+  id        Int      @id @default(autoincrement())
+  paperId   Int
+  userId    Int?
+  event     String   @db.VarChar(200)
+  detail    String?  @db.VarChar(500)
+  createdAt DateTime @default(now())
+
+  paper Paper  @relation(fields: [paperId], references: [id], onDelete: Cascade)
+  user  User?  @relation(fields: [userId], references: [id])
+
+  @@index([paperId])
+  @@map("paper_history")
+}

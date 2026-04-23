@@ -1,68 +1,203 @@
-import mongoose from 'mongoose';
+// backend/scripts/seed.js
+
+import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
-import dotenv from 'dotenv';
-import Usuario from '../models/Usuario.js';
 
-// Si ejecutamos "node backend/scripts/seed.js" desde root, el env está en "backend/.env"
-// Si ejecutamos "node scripts/seed.js" desde "backend/", el env está en "./.env"
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+const prisma = new PrismaClient();
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const envPath = path.resolve(__dirname, '../.env');
+async function seed() {
+  console.log("\n🚀 Iniciando seed...\n");
 
-dotenv.config({ path: envPath });
+  // =========================
+  // 🧹 LIMPIEZA (orden correcto por FK)
+  // =========================
+  console.log("🧹 Limpiando base de datos...");
 
-const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/peerreview';
+  await prisma.review.deleteMany();
+  await prisma.assignment.deleteMany();
+  await prisma.paperVersion.deleteMany();
+  await prisma.paperHistory.deleteMany();
+  await prisma.paper.deleteMany();
+  await prisma.eventUser.deleteMany();
+  await prisma.event.deleteMany();
+  await prisma.user.deleteMany();
 
-const seedDatabase = async () => {
-  try {
-    await mongoose.connect(MONGO_URI);
-    console.log(`[Seed] Conectado a MongoDB en ${MONGO_URI}`);
+  console.log("✔ Base de datos limpia\n");
 
-    // Limpiar usuarios existentes
-    await Usuario.deleteMany({});
-    console.log('[Seed] Tabla de usuarios limpiada.');
+  // =========================
+  // 🔐 PASSWORD
+  // =========================
+  const hashedPassword = await bcrypt.hash('1234', 10);
 
-    const salt = await bcrypt.genSalt(10);
-    const passwordHash = await bcrypt.hash('1234', salt);
+  // =========================
+  // 👥 USUARIOS
+  // =========================
+  console.log("👥 Creando usuarios...");
 
-    const usuariosPrueba = [
-      {
-        username: 'autor1',
-        email: 'autor1@uabc.edu.mx',
-        passwordHash,
-        roles: ['autor'],
-      },
-      {
-        username: 'revisor1',
-        email: 'revisor1@uabc.edu.mx',
-        passwordHash,
-        roles: ['revisor'],
-      },
-      {
-        username: 'editor1',
-        email: 'editor1@uabc.edu.mx',
-        passwordHash,
-        roles: ['editor'],
-      },
-      {
-        username: 'multiusuario',
-        email: 'multiusuario@uabc.edu.mx',
-        passwordHash,
-        roles: ['autor', 'revisor', 'editor'],
-      }
-    ];
+  const admin = await prisma.user.create({
+    data: {
+      username: 'admin_root',
+      email: 'admin@qa.com',
+      passwordHash: hashedPassword
+    }
+  });
 
-    await Usuario.insertMany(usuariosPrueba);
-    console.log('[Seed] Usuarios insertados exitosamente (sin el admin).');
+  const autor = await prisma.user.create({
+    data: {
+      username: 'autor_multi',
+      email: 'autor@qa.com',
+      passwordHash: hashedPassword
+    }
+  });
 
-    process.exit(0);
-  } catch (error) {
-    console.error('[Seed] Error populando la base de datos:', error);
-    process.exit(1);
-  }
-};
+  const editor = await prisma.user.create({
+    data: {
+      username: 'editor_multi',
+      email: 'editor@qa.com',
+      passwordHash: hashedPassword
+    }
+  });
 
-seedDatabase();
+  const revisor = await prisma.user.create({
+    data: {
+      username: 'revisor_multi',
+      email: 'revisor@qa.com',
+      passwordHash: hashedPassword
+    }
+  });
+
+  const multi = await prisma.user.create({
+    data: {
+      username: 'multi_extremo',
+      email: 'multi@qa.com',
+      passwordHash: hashedPassword
+    }
+  });
+
+  console.log("✔ Usuarios creados\n");
+
+  // =========================
+  // 🏛️ EVENTOS
+  // =========================
+  console.log("🏛️ Creando eventos...");
+
+  const eventoA = await prisma.event.create({
+    data: { slug: 'ia-qa-2026', name: 'Congreso IA QA 2026' }
+  });
+
+  const eventoB = await prisma.event.create({
+    data: { slug: 'software-qa-2026', name: 'Simposio Software QA 2026' }
+  });
+
+  const eventoC = await prisma.event.create({
+    data: { slug: 'redes-qa-2026', name: 'Taller Redes QA 2026' }
+  });
+
+  console.log("✔ Eventos creados\n");
+
+  // =========================
+  // 🎭 ROLES (EventUser)
+  // =========================
+  console.log("🎭 Asignando roles...");
+
+  await prisma.eventUser.createMany({
+    data: [
+      { userId: admin.id, eventId: eventoA.id, role: 'ADMIN' },
+      { userId: admin.id, eventId: eventoB.id, role: 'ADMIN' },
+      { userId: admin.id, eventId: eventoC.id, role: 'ADMIN' },
+
+      { userId: autor.id, eventId: eventoA.id, role: 'AUTHOR' },
+      { userId: autor.id, eventId: eventoB.id, role: 'AUTHOR' },
+
+      { userId: editor.id, eventId: eventoB.id, role: 'EDITOR' },
+      { userId: editor.id, eventId: eventoC.id, role: 'EDITOR' },
+
+      { userId: revisor.id, eventId: eventoA.id, role: 'REVIEWER' },
+      { userId: revisor.id, eventId: eventoC.id, role: 'REVIEWER' },
+
+      { userId: multi.id, eventId: eventoA.id, role: 'AUTHOR' },
+      { userId: multi.id, eventId: eventoB.id, role: 'REVIEWER' },
+      { userId: multi.id, eventId: eventoC.id, role: 'EDITOR' },
+    ]
+  });
+
+  console.log("✔ Roles asignados\n");
+
+  // =========================
+  // 📄 PAPERS
+  // =========================
+  console.log("📄 Creando papers...");
+
+  const paper1 = await prisma.paper.create({
+    data: {
+      title: 'Paper QA - Prueba Inicial',
+      abstract: 'Paper para pruebas QA',
+      documentUrl: 'http://example.com/paper1.pdf',
+      status: 'RECEIVED',
+      eventId: eventoA.id,
+      authorId: autor.id
+    }
+  });
+
+  const paper2 = await prisma.paper.create({
+    data: {
+      title: 'Paper QA - Multiusuario',
+      abstract: 'Paper del usuario extremo',
+      documentUrl: 'http://example.com/paper2.pdf',
+      status: 'UNDER_REVIEW',
+      eventId: eventoB.id,
+      authorId: multi.id
+    }
+  });
+
+  console.log("✔ Papers creados\n");
+
+  // =========================
+  // 🧪 REVIEW (correcto según schema)
+  // =========================
+  console.log("🧪 Creando reviews...");
+
+  const assignment = await prisma.assignment.create({
+    data: {
+      paperId: paper2.id,
+      reviewerId: revisor.id,
+      status: 'IN_PROGRESS'
+    }
+  });
+
+  await prisma.review.create({
+    data: {
+      paperId: paper2.id,
+      reviewerId: revisor.id,
+      assignmentId: assignment.id,
+      verdict: 'ACCEPT',
+      originality: 4,
+      methodologicalRigor: 4,
+      writingQuality: 5,
+      relevance: 4,
+      comments: 'Review inicial de prueba'
+    }
+  });
+
+  console.log("✔ Reviews creadas\n");
+
+  // =========================
+  // 📊 RESULTADO
+  // =========================
+  console.log("\n━━━━━━━━━━━━━━━━━━━━━━");
+  console.log("✅ SEED COMPLETADO");
+  console.log("━━━━━━━━━━━━━━━━━━━━━━");
+
+  console.log("\n👤 LOGIN TEST:");
+  console.log("admin@qa.com / 1234");
+  console.log("autor@qa.com / 1234");
+  console.log("revisor@qa.com / 1234\n");
+}
+
+seed()
+  .catch((e) => {
+    console.error("❌ Error en seed:", e);
+  })
+  .finally(async () => {
+    await prisma.$disconnect();
+  });
