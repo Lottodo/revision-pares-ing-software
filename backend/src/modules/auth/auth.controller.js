@@ -46,7 +46,12 @@ export const me = async (req, res) => {
   }
 };
 
-export const logout = (_req, res) => {
-  // JWT es stateless: el cliente elimina el token local
-  return ok(res, { message: 'Sesión cerrada. Elimina el token del cliente.' });
+export const logout = async (req, res) => {
+  try {
+    // Limpiar el sessionId para desloguear de todos los dispositivos
+    await authService.logout(req.user.id);
+    return ok(res, { message: 'Sesión cerrada.' });
+  } catch (err) {
+    return serverError(res, err);
+  }
 };

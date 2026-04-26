@@ -58,9 +58,9 @@ export const usePapersStore = defineStore('papers', () => {
     } finally { loading.value = false; }
   };
 
-  const updateStatus = async (id, status) => {
+  const updateStatus = async (id, status, editorComment) => {
     try {
-      const { data } = await papersApi.updateStatus(id, status);
+      const { data } = await papersApi.updateStatus(id, status, editorComment);
       const idx = papers.value.findIndex((p) => p.id === id);
       if (idx !== -1) papers.value[idx] = data.data;
       if (current.value?.id === id) current.value = data.data;

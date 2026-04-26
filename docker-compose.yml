@@ -31,6 +31,13 @@ services:
     restart: unless-stopped
     ports:
       - "3000:3000"
+    command: >
+      sh -c "
+        echo 'Esperando DB...' &&
+        npx prisma migrate deploy &&
+        npx prisma generate &&
+        node src/server.js
+      "
     environment:
       DATABASE_URL: mysql://root:rootpass@mysql:3306/peerreview
       JWT_SECRET: congress_jwt_secret_change_in_production_32chars
@@ -38,18 +45,17 @@ services:
       NODE_ENV: development
       UPLOADS_DIR: /app/uploads
       FRONTEND_URL: http://localhost:5173
+      PRISMA_GENERATE_SKIP_AUTOINSTALL: "true"
     volumes:
       - ./backend:/app
       - /app/node_modules
-      - uploads_data:/app/uploads
+      - ./backend/uploads:/app/uploads
     depends_on:
       mysql:
         condition: service_healthy
     networks:
       - app-net
-    command: >
-      sh -c "npx prisma migrate deploy && npx prisma generate && node src/server.js"
-  
+
   # ─── Frontend Vue 3 + Vite PWA ─────────────────────────────────
   frontend:
     build:

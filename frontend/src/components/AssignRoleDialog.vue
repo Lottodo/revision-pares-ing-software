@@ -66,7 +66,6 @@ const roleOptions = [
   { label: 'Autor',          value: 'AUTHOR'   },
   { label: 'Revisor',        value: 'REVIEWER' },
   { label: 'Editor',         value: 'EDITOR'   },
-  { label: 'Administrador',  value: 'ADMIN'    },
 ];
 
 // Pre-seleccionar evento si viene del contexto de evento

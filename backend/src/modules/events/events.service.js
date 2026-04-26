@@ -62,3 +62,30 @@ export const getStats = async (id) => {
     pendingAssignments: assignments,
   };
 };
+
+export const joinByCode = async (userId, accessCode) => {
+  const event = await prisma.event.findUnique({ where: { slug: accessCode } });
+  if (!event) { 
+    const e = new Error('Código de acceso no válido o evento no encontrado.'); 
+    e.status = 404; 
+    throw e; 
+  }
+  if (!event.active) {
+    const e = new Error('Este evento está inactivo.');
+    e.status = 403;
+    throw e;
+  }
+
+  // Check if already a member
+  const member = await prisma.eventUser.findFirst({ where: { userId, eventId: event.id } });
+  if (member) { 
+    return { message: 'Ya eres miembro de este evento.', event };
+  }
+
+  // Add as AUTHOR by default
+  await prisma.eventUser.create({
+    data: { userId, eventId: event.id, role: 'AUTHOR' }
+  });
+
+  return { message: 'Te has unido exitosamente al congreso.', event };
+};

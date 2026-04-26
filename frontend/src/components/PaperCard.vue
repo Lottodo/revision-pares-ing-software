@@ -28,12 +28,12 @@
 
     <v-card-actions class="pa-3">
       <v-btn
-        :href="paper.documentUrl"
-        target="_blank"
+        :loading="loadingPdf"
         size="small"
         variant="text"
         prepend-icon="mdi-file-pdf-box"
         color="error"
+        @click="openPdf"
       >Ver PDF</v-btn>
       <v-spacer />
       <v-btn
@@ -52,8 +52,26 @@
 </template>
 
 <script setup>
-defineProps({ paper: Object });
+import { ref } from 'vue';
+import { papersApi } from '../api/index.js';
+
+const props = defineProps({ paper: Object });
 defineEmits(['view', 'new-version']);
+
+const loadingPdf = ref(false);
+
+const openPdf = async () => {
+  if (!props.paper?.documentUrl) return;
+  loadingPdf.value = true;
+  try {
+    const url = await papersApi.downloadPdf(props.paper.documentUrl);
+    window.open(url, '_blank');
+  } catch (e) {
+    console.error('Error abriendo PDF:', e);
+  } finally {
+    loadingPdf.value = false;
+  }
+};
 
 const canUploadVersion = (status) => ['MINOR_CHANGES', 'MAJOR_CHANGES'].includes(status);
 

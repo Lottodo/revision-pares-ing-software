@@ -6,7 +6,7 @@ import { logHistory } from '../../shared/history.js';
 
 // Campos que NUNCA se exponen a un revisor (doble ciego)
 const BLIND_SELECT = {
-  id: true, title: true, abstract: true, documentUrl: true,
+  id: true, title: true, abstract: true, documentUrl: true, area: true,
   status: true, createdAt: true, updatedAt: true, eventId: true,
   versions: { select: { version: true, url: true, createdAt: true } },
 };
@@ -20,6 +20,19 @@ const FULL_SELECT = {
     select: {
       id: true, status: true, deadline: true, reviewerId: true,
       reviewer: { select: { id: true, username: true } },
+    },
+  },
+};
+
+// Campos para el autor (no debe ver quién es su revisor)
+const AUTHOR_SELECT = {
+  ...BLIND_SELECT,
+  authorId: true,
+  author: { select: { id: true, username: true, email: true } },
+  assignments: {
+    select: {
+      id: true, status: true, deadline: true,
+      // SIN DATOS DEL REVISOR
     },
   },
 };
@@ -57,10 +70,10 @@ export const listByEvent = async (eventId, user) => {
     return assignments.map((a) => ({ ...a.paper, assignmentId: a.id, assignmentStatus: a.status, deadline: a.deadline }));
   }
 
-  // AUTHOR (o multirol): sus propios artículos con info completa
+  // AUTHOR (o multirol): sus propios artículos
   return prisma.paper.findMany({
     where: { eventId, authorId: userId },
-    select: FULL_SELECT,
+    select: isEditor ? FULL_SELECT : AUTHOR_SELECT,
     orderBy: { createdAt: 'desc' },
   });
 };
@@ -76,7 +89,7 @@ export const getById = async (id, eventId, user) => {
 
   const paper = await prisma.paper.findFirst({
     where: { id, eventId },
-    select: isReviewer ? BLIND_SELECT : FULL_SELECT,
+    select: isReviewer ? BLIND_SELECT : (isEditor ? FULL_SELECT : AUTHOR_SELECT),
   });
 
   if (!paper) { const e = new Error('Artículo no encontrado en este evento.'); e.status = 404; throw e; }
@@ -101,7 +114,7 @@ export const getById = async (id, eventId, user) => {
  * Crea un artículo nuevo. Solo AUTHOR puede hacerlo.
  * El eventId viene del token JWT (contexto activo).
  */
-export const create = async ({ title, abstract, documentUrl, eventId, authorId }) => {
+export const create = async ({ title, abstract, documentUrl, area, eventId, authorId }) => {
   // Verificar que el usuario tenga rol AUTHOR en el evento
   const membership = await prisma.eventUser.findFirst({
     where: { userId: authorId, eventId, role: 'AUTHOR' },
@@ -112,7 +125,7 @@ export const create = async ({ title, abstract, documentUrl, eventId, authorId }
 
   const paper = await prisma.paper.create({
     data: {
-      eventId, authorId, title, abstract, documentUrl,
+      eventId, authorId, title, abstract, documentUrl, area,
       status: 'RECEIVED',
       versions: { create: [{ version: 1, url: documentUrl }] },
     },
@@ -156,20 +169,33 @@ export const addVersion = async (paperId, eventId, { documentUrl, note }, userId
   return updated;
 };
 
-/**
- * Cambia el estado de un artículo. Solo EDITOR o ADMIN.
- */
-export const updateStatus = async (paperId, eventId, status, editorId) => {
+// Ya no restringiremos transiciones estrictas para el editor, para permitir corregir errores.
+// Simplemente se actualizará al nuevo estado (como ACCEPTED o REJECTED de forma nativa).
+
+export const updateStatus = async (paperId, eventId, newStatus, editorId, editorComment) => {
   const paper = await prisma.paper.findFirst({ where: { id: paperId, eventId } });
-  if (!paper) { const e = new Error('Artículo no encontrado.'); e.status = 404; throw e; }
+  if (!paper) {
+    const e = new Error('Artículo no encontrado.'); e.status = 404; throw e;
+  }
 
   const updated = await prisma.paper.update({
     where: { id: paperId },
-    data: { status },
+    data: { status: newStatus },
     select: FULL_SELECT,
   });
 
-  await logHistory(paperId, `Decisión editorial: ${status}`, `Editor dictaminó el artículo.`, editorId);
+  await logHistory(
+    paperId,
+    `Decisión editorial: ${newStatus}`,
+    editorComment ? `Editor: ${editorComment}` : `Editor dictaminó el artículo como ${newStatus}.`,
+    editorId
+  );
+
+  // Si fue aceptado o rechazado, registrar cierre del ciclo
+  if (['ACCEPTED', 'REJECTED'].includes(newStatus)) {
+    await logHistory(paperId, 'Proceso completado', 'El artículo cerró su ciclo de revisión.', null);
+  }
+
   return updated;
 };
 
@@ -195,4 +221,59 @@ export const getHistory = async (paperId, eventId, user) => {
     orderBy: { createdAt: 'asc' },
     select: { id: true, event: true, detail: true, createdAt: true },
   });
+};
+
+/**
+ * Añadir nota manual al historial (comentarios, respuestas)
+ */
+export const addHistoryNote = async (paperId, eventId, user, note) => {
+  const { id: userId, roles = [], username } = user;
+  const isEditor = roles.includes('EDITOR') || roles.includes('ADMIN');
+
+  const paper = await prisma.paper.findFirst({ where: { id: paperId, eventId } });
+  if (!paper) { const e = new Error('Artículo no encontrado.'); e.status = 404; throw e; }
+
+  if (!isEditor && paper.authorId !== userId) {
+    const e = new Error('No tienes permiso para comentar en este artículo.'); e.status = 403; throw e;
+  }
+  
+  if (!note || note.trim().length === 0) {
+    const e = new Error('La nota no puede estar vacía.'); e.status = 400; throw e;
+  }
+
+  const roleName = isEditor ? 'Editor' : 'Autor';
+  await logHistory(paperId, `Comentario de ${roleName}`, note, userId);
+
+  return { message: 'Nota añadida exitosamente.' };
+};
+
+export const verifyPdfAccess = async (filename, user) => {
+  if (user.isGlobalAdmin) return true;
+  
+  const targetPath = `/uploads/${filename}`;
+  
+  // Buscar a qué artículo pertenece este PDF (la URL en BD puede ser absoluta o relativa)
+  const paper = await prisma.paper.findFirst({ 
+    where: { documentUrl: { endsWith: targetPath } } 
+  });
+  let eventId = paper?.eventId;
+  
+  if (!paper) {
+    const version = await prisma.paperVersion.findFirst({ 
+      where: { url: { endsWith: targetPath } }, 
+      include: { paper: true } 
+    });
+    eventId = version?.paper?.eventId;
+  }
+  
+  if (!eventId) {
+    const e = new Error('Archivo no registrado en el sistema.'); e.status = 404; throw e;
+  }
+  
+  // Si el usuario no está en el mismo evento del artículo, denegar acceso
+  if (eventId !== user.eventId) {
+    const e = new Error('No tienes acceso a los documentos de este congreso.'); e.status = 403; throw e;
+  }
+  
+  return true;
 };

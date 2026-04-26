@@ -8,7 +8,11 @@ import { uploadPdf } from '../../middleware/upload.js';
 import { createPaperSchema, updateStatusSchema, paperIdParamSchema } from './papers.validator.js';
 
 const router = Router();
-// Todos los endpoints de papers requieren token Y contexto de evento
+
+// Descarga protegida de PDF
+router.get('/download', verifyToken, ctrl.downloadPdf);
+
+// Todos los demás endpoints de papers requieren token Y contexto de evento
 router.use(verifyToken, requireEventContext);
 
 // Listar — cada rol ve lo que le corresponde (lógica en service)
@@ -53,6 +57,13 @@ router.get('/:id/history',
   validate(paperIdParamSchema, 'params'),
   requireRole('AUTHOR', 'EDITOR', 'ADMIN'),
   ctrl.getHistory
+);
+
+// Añadir nota al historial — AUTHOR, EDITOR o ADMIN
+router.post('/:id/history',
+  validate(paperIdParamSchema, 'params'),
+  requireRole('AUTHOR', 'EDITOR', 'ADMIN'),
+  ctrl.addHistoryNote
 );
 
 export default router;

@@ -18,7 +18,8 @@ export const useAuthStore = defineStore('auth', () => {
   const roles           = computed(() => activeEvent.value?.roles ?? []);
   const eventId         = computed(() => activeEvent.value?.event?.id ?? null);
 
-  const isAdmin    = computed(() => roles.value.includes('ADMIN'));
+  const isAdmin    = computed(() => roles.value.includes('ADMIN') || user.value?.isGlobalAdmin);
+  const isGlobalAdmin = computed(() => !!user.value?.isGlobalAdmin);
   const isEditor   = computed(() => roles.value.includes('EDITOR') || isAdmin.value);
   const isReviewer = computed(() => roles.value.includes('REVIEWER'));
   const isAuthor   = computed(() => roles.value.includes('AUTHOR'));
@@ -61,6 +62,14 @@ export const useAuthStore = defineStore('auth', () => {
 
     persist();
     return result;
+  };
+
+  /**
+   * Register a new user
+   */
+  const register = async (userData) => {
+    const { data } = await authApi.register(userData);
+    return data.data;
   };
 
   /**
@@ -108,8 +117,8 @@ export const useAuthStore = defineStore('auth', () => {
     token, user, activeEvent, userEvents,
     // Computed
     isAuthenticated, roles, eventId,
-    isAdmin, isEditor, isReviewer, isAuthor,
+    isAdmin, isGlobalAdmin, isEditor, isReviewer, isAuthor,
     // Acciones
-    login, logout, switchEvent, refreshMe,
+    login, register, logout, switchEvent, refreshMe,
   };
 });

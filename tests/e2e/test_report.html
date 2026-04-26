@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Reporte de Pruebas — Sistema Revisión de Congresos</title>
+  
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0f172a; color: #e2e8f0; min-height: 100vh; }
+  header { background: linear-gradient(135deg, #1e3a8a 0%, #7c3aed 100%); padding: 2rem 3rem; }
+  header h1 { font-size: 1.8rem; font-weight: 700; }
+  header p  { color: #bfdbfe; margin-top: .25rem; font-size: .9rem; }
+  .summary  { display: flex; gap: 1rem; padding: 1.5rem 3rem; flex-wrap: wrap; }
+  .stat     { background: #1e293b; border-radius: 12px; padding: 1rem 1.5rem; flex: 1; min-width: 140px; }
+  .stat .n  { font-size: 2rem; font-weight: 700; }
+  .stat .l  { font-size: .8rem; color: #94a3b8; margin-top: .25rem; }
+  .pass     { color: #34d399; }
+  .fail     { color: #f87171; }
+  .suite    { margin: 0 3rem 2rem; }
+  .suite h2 { font-size: 1rem; font-weight: 600; color: #94a3b8; text-transform: uppercase;
+               letter-spacing: .08em; margin-bottom: .75rem; border-bottom: 1px solid #1e293b; padding-bottom: .5rem; }
+  table     { width: 100%; border-collapse: collapse; background: #1e293b; border-radius: 12px; overflow: hidden; }
+  th        { background: #0f172a; color: #64748b; font-size: .75rem; text-transform: uppercase;
+               letter-spacing: .06em; padding: .75rem 1rem; text-align: left; }
+  td        { padding: .7rem 1rem; font-size: .85rem; border-top: 1px solid #0f172a; vertical-align: top; }
+  td.icon   { width: 40px; font-size: 1rem; }
+  td.dur    { width: 90px; color: #64748b; text-align: right; }
+  td.detail { color: #94a3b8; font-size: .8rem; line-height: 1.5; }
+  tr:hover td { background: #243352; }
+  .badge-pass { background: #064e3b; color: #34d399; border-radius: 6px; padding: .15rem .5rem; font-size: .75rem; }
+  .badge-fail { background: #450a0a; color: #f87171; border-radius: 6px; padding: .15rem .5rem; font-size: .75rem; }
+  footer { text-align: center; color: #475569; font-size: .8rem; padding: 2rem; }
+</style>
+
+</head>
+<body>
+  <header>
+    <h1>📋 Reporte de Pruebas del Sistema</h1>
+    <p>Sistema de Revisión de Congresos Académicos &nbsp;·&nbsp; Generado: 2026-04-26 01:21:52</p>
+  </header>
+
+  <div class="summary">
+    <div class="stat"><div class="n">31</div><div class="l">Total de pruebas</div></div>
+    <div class="stat"><div class="n pass">26</div><div class="l">Pasaron ✅</div></div>
+    <div class="stat"><div class="n fail">5</div><div class="l">Fallaron ❌</div></div>
+    <div class="stat"><div class="n pass">84%</div><div class="l">Tasa de éxito</div></div>
+  </div>
+
+  
+  <div class="suite">
+    <h2>Offline — 3/5 pasaron</h2>
+    <table>
+      <thead><tr><th>Estado</th><th>Prueba</th><th>Detalle</th><th>ms</th></tr></thead>
+      <tbody>
+        <tr>
+          <td class="icon">✅ <span class="badge-pass">PASS</span></td>
+          <td><strong>Frontend carga (HTTP 200)</strong></td>
+          <td class="detail">Status 200 en 110 ms</td>
+          <td class="dur">110 ms</td>
+        </tr>
+        <tr>
+          <td class="icon">❌ <span class="badge-fail">FAIL</span></td>
+          <td><strong>manifest.webmanifest accesible</strong></td>
+          <td class="detail">Expecting value: line 1 column 1 (char 0)</td>
+          <td class="dur">—</td>
+        </tr>
+        <tr>
+          <td class="icon">✅ <span class="badge-pass">PASS</span></td>
+          <td><strong>sw.js servido por Vite</strong></td>
+          <td class="detail">Tamaño: 627 bytes</td>
+          <td class="dur">—</td>
+        </tr>
+        <tr>
+          <td class="icon">❌ <span class="badge-fail">FAIL</span></td>
+          <td><strong>Workbox/precache en sw.js</strong></td>
+          <td class="detail">No se detectó workbox</td>
+          <td class="dur">—</td>
+        </tr>
+        <tr>
+          <td class="icon">✅ <span class="badge-pass">PASS</span></td>
+          <td><strong>Backend API health check</strong></td>
+          <td class="detail">{"status":"ok","timestamp":"2026-04-26T08:21:51.078Z"}</td>
+          <td class="dur">54 ms</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="suite">
+    <h2>MySQL CRUD — 7/8 pasaron</h2>
+    <table>
+      <thead><tr><th>Estado</th><th>Prueba</th><th>Detalle</th><th>ms</th></tr></thead>
+      <tbody>
+        <tr>
+          <td class="icon">✅ <span class="badge-pass">PASS</span></td>
+          <td><strong>CREATE usuario (registro)</strong></td>
+          <td class="detail">HTTP 201</td>
+          <td class="dur">201 ms</td>
+        </tr>
+        <tr>
+          <td class="icon">✅ <span class="badge-pass">PASS</span></td>
+          <td><strong>READ usuario (login admin)</strong></td>
+          <td class="detail">Token JWT obtenido</td>
+          <td class="dur">—</td>
+        </tr>
+        <tr>
+          <td class="icon">✅ <span class="badge-pass">PASS</span></td>
+          <td><strong>READ usuario (login multiusuario)</strong></td>
+          <td class="detail">Evento: Congreso de COMPUTACION</td>
+          <td class="dur">—</td>
+        </tr>
+        <tr>
+          <td class="icon">✅ <span class="badge-pass">PASS</span></td>
+          <td><strong>READ lista de eventos</strong></td>
+          <td class="detail">8 eventos encontrados</td>
+          <td class="dur">13 ms</td>
+        </tr>
+        <tr>
+          <td class="icon">❌ <span class="badge-fail">FAIL</span></td>
+          <td><strong>READ lista de artículos</strong></td>
+          <td class="detail">0 artículos</td>
+          <td class="dur">6 ms</td>
+        </tr>
+        <tr>
+          <td class="icon">✅ <span class="badge-pass">PASS</span></td>
+          <td><strong>READ lista de usuarios (admin)</strong></td>
+          <td class="detail">101 usuarios</td>
+          <td class="dur">47 ms</td>
+        </tr>
+        <tr>
+          <td class="icon">✅ <span class="badge-pass">PASS</span></td>
+          <td><strong>READ revisores por evento</strong></td>
+          <td class="detail">15 revisores disponibles</td>
+          <td class="dur">31 ms</td>
+        </tr>
+        <tr>
+          <td class="icon">✅ <span class="badge-pass">PASS</span></td>
+          <td><strong>Validación doble ciego (409 esperado)</strong></td>
+          <td class="detail">HTTP ERR — Bloqueado correctamente ✓</td>
+          <td class="dur">56 ms</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="suite">
+    <h2>MySQL vs MongoDB — 7/8 pasaron</h2>
+    <table>
+      <thead><tr><th>Estado</th><th>Prueba</th><th>Detalle</th><th>ms</th></tr></thead>
+      <tbody>
+        <tr>
+          <td class="icon">✅ <span class="badge-pass">PASS</span></td>
+          <td><strong>Datos estructurados con relaciones fijas</strong></td>
+          <td class="detail">El dominio de revisión por pares tiene entidades con FK estrictas: User→EventUser→Paper→Assignment→Review→PaperHistory. Un modelo relacional garantiza integridad referencial nativa (ON DELETE CASCADE, FK).</td>
+          <td class="dur">—</td>
+        </tr>
+        <tr>
+          <td class="icon">✅ <span class="badge-pass">PASS</span></td>
+          <td><strong>Integridad referencial y transacciones ACID</strong></td>
+          <td class="detail">Cuando un revisor acepta una invitación se deben actualizar Assignment.status y crear PaperHistory.event en la misma transacción. MySQL garantiza atomicidad; MongoDB requiere sesiones multi-documento (más complejo).</td>
+          <td class="dur">—</td>
+        </tr>
+        <tr>
+          <td class="icon">✅ <span class="badge-pass">PASS</span></td>
+          <td><strong>Prisma ORM — soporte completo con MySQL</strong></td>
+          <td class="detail">Prisma tiene soporte de primera clase para MySQL con migraciones automáticas (prisma migrate dev/deploy), tipado TypeScript end-to-end y generación del cliente. Reducción significativa de boilerplate vs queries crudas.</td>
+          <td class="dur">—</td>
+        </tr>
+        <tr>
+          <td class="icon">✅ <span class="badge-pass">PASS</span></td>
+          <td><strong>Consultas JOIN complejas requeridas</strong></td>
+          <td class="detail">Las vistas del Editor necesitan: Paper JOIN User JOIN Assignment JOIN Review en una sola consulta. En MySQL esto es natural; en MongoDB requeriría $lookup anidados y pierde legibilidad.</td>
+          <td class="dur">—</td>
+        </tr>
+        <tr>
+          <td class="icon">✅ <span class="badge-pass">PASS</span></td>
+          <td><strong>Esquema fijo predecible — sin variabilidad de documentos</strong></td>
+          <td class="detail">MongoDB brilla cuando los documentos tienen estructura variable. Aquí todos los artículos, evaluaciones y asignaciones tienen campos fijos. La flexibilidad de documentos de MongoDB no aporta valor y aumenta riesgo de datos inconsistentes.</td>
+          <td class="dur">—</td>
+        </tr>
+        <tr>
+          <td class="icon">✅ <span class="badge-pass">PASS</span></td>
+          <td><strong>Despliegue simple con Docker Compose</strong></td>
+          <td class="detail">La imagen oficial mysql:8.0 en Docker Compose es estable, bien documentada y soporta healthcheck nativo. No requiere replica set para funcionar (MongoDB necesita replica set para transacciones ACID completas).</td>
+          <td class="dur">—</td>
+        </tr>
+        <tr>
+          <td class="icon">❌ <span class="badge-fail">FAIL</span></td>
+          <td><strong>MongoDB podría usarse si...</strong></td>
+          <td class="detail">MongoDB sería preferible si el sistema guardara contenido dinámico (ej. el texto completo de artículos con secciones variables, metadatos de conferencias sin esquema fijo, logs de eventos en tiempo real). Para esos casos su indexación de texto completo y flexibilidad de esquema aportan valor real.</td>
+          <td class="dur">—</td>
+        </tr>
+        <tr>
+          <td class="icon">✅ <span class="badge-pass">PASS</span></td>
+          <td><strong>MySQL conectado (via Docker health)</strong></td>
+          <td class="detail">Backend confirma conexión a MySQL: {"status":"ok","timestamp":"2026-04-26T08:21:51.916Z"}</td>
+          <td class="dur">3 ms</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="suite">
+    <h2>Docker — 9/10 pasaron</h2>
+    <table>
+      <thead><tr><th>Estado</th><th>Prueba</th><th>Detalle</th><th>ms</th></tr></thead>
+      <tbody>
+        <tr>
+          <td class="icon">✅ <span class="badge-pass">PASS</span></td>
+          <td><strong>Contenedor Backend Node.js/Express (congress_backend)</strong></td>
+          <td class="detail">Estado: running</td>
+          <td class="dur">192 ms</td>
+        </tr>
+        <tr>
+          <td class="icon">✅ <span class="badge-pass">PASS</span></td>
+          <td><strong>Contenedor Base de datos MySQL 8 (congress_mysql)</strong></td>
+          <td class="detail">Estado: running</td>
+          <td class="dur">80 ms</td>
+        </tr>
+        <tr>
+          <td class="icon">✅ <span class="badge-pass">PASS</span></td>
+          <td><strong>Contenedor Frontend Vue 3 / Vite PWA (congress_frontend)</strong></td>
+          <td class="detail">Estado: running</td>
+          <td class="dur">73 ms</td>
+        </tr>
+        <tr>
+          <td class="icon">✅ <span class="badge-pass">PASS</span></td>
+          <td><strong>Backend responde en puerto 3000</strong></td>
+          <td class="detail">HTTP 200 en 3 ms</td>
+          <td class="dur">3 ms</td>
+        </tr>
+        <tr>
+          <td class="icon">✅ <span class="badge-pass">PASS</span></td>
+          <td><strong>Frontend responde en puerto 5173</strong></td>
+          <td class="detail">HTTP 200 en 16 ms</td>
+          <td class="dur">16 ms</td>
+        </tr>
+        <tr>
+          <td class="icon">❌ <span class="badge-fail">FAIL</span></td>
+          <td><strong>Red app-net: backend→mysql funcional</strong></td>
+          <td class="detail">Fallo</td>
+          <td class="dur">4 ms</td>
+        </tr>
+        <tr>
+          <td class="icon">✅ <span class="badge-pass">PASS</span></td>
+          <td><strong>Volumen /app/uploads montado</strong></td>
+          <td class="detail">Backend levantó correctamente (uploads_dir configurado)</td>
+          <td class="dur">—</td>
+        </tr>
+        <tr>
+          <td class="icon">✅ <span class="badge-pass">PASS</span></td>
+          <td><strong>Política restart Backend Node.js/Express</strong></td>
+          <td class="detail">RestartPolicy: unless-stopped</td>
+          <td class="dur">—</td>
+        </tr>
+        <tr>
+          <td class="icon">✅ <span class="badge-pass">PASS</span></td>
+          <td><strong>Política restart Base de datos MySQL 8</strong></td>
+          <td class="detail">RestartPolicy: unless-stopped</td>
+          <td class="dur">—</td>
+        </tr>
+        <tr>
+          <td class="icon">✅ <span class="badge-pass">PASS</span></td>
+          <td><strong>Política restart Frontend Vue 3 / Vite PWA</strong></td>
+          <td class="detail">RestartPolicy: unless-stopped</td>
+          <td class="dur">—</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <footer>Reporte automático generado por el sistema de testing — 2026-04-26 01:21:52</footer>
+</body>
+</html>

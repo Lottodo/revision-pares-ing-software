@@ -4,9 +4,11 @@ import { useAuthStore } from '../stores/auth.js';
 
 // Lazy-loaded views por rol
 const LoginView           = () => import('../views/LoginView.vue');
+const RegisterView        = () => import('../views/RegisterView.vue');
 const EventSelectorView   = () => import('../views/EventSelectorView.vue');
 const AuthorView          = () => import('../views/AuthorView.vue');
 const ReviewerView        = () => import('../views/ReviewerView.vue');
+const ReviewWorkerView    = () => import('../views/ReviewWorkerView.vue');
 const EditorView          = () => import('../views/EditorView.vue');
 const AdminView           = () => import('../views/AdminView.vue');
 const PaperDetailView     = () => import('../views/PaperDetailView.vue');
@@ -15,9 +17,21 @@ const NotFoundView        = () => import('../views/NotFoundView.vue');
 
 const routes = [
   { path: '/login',          name: 'login',          component: LoginView,          meta: { guest: true } },
+  { path: '/register',       name: 'register',       component: RegisterView,       meta: { guest: true } },
   { path: '/select-event',   name: 'select-event',   component: EventSelectorView,  meta: { requiresAuth: true } },
   { path: '/author',         name: 'author',         component: AuthorView,         meta: { requiresAuth: true, roles: ['AUTHOR'] } },
-  { path: '/reviewer',       name: 'reviewer',       component: ReviewerView,       meta: { requiresAuth: true, roles: ['REVIEWER'] } },
+  {
+    path: '/reviewer',
+    name: 'reviewer',
+    component: ReviewerView,
+    meta: { requiresAuth: true, roles: ['REVIEWER'] },
+  },
+  {
+    path: '/reviewer/work/:id',
+    name: 'review-worker',
+    component: ReviewWorkerView,
+    meta: { requiresAuth: true, roles: ['REVIEWER'] },
+  },
   { path: '/editor',         name: 'editor',         component: EditorView,         meta: { requiresAuth: true, roles: ['EDITOR', 'ADMIN'] } },
   { path: '/admin',          name: 'admin',          component: AdminView,          meta: { requiresAuth: true, roles: ['ADMIN'] } },
   { path: '/papers/:id',     name: 'paper-detail',   component: PaperDetailView,    meta: { requiresAuth: true } },
@@ -29,8 +43,9 @@ const routes = [
 const defaultRedirect = () => {
   const auth = useAuthStore();
   if (!auth.isAuthenticated) return '/login';
-  if (!auth.eventId) return '/select-event';
-  if (auth.isAdmin || auth.isEditor) return '/editor';
+  if (!auth.eventId && !auth.isGlobalAdmin) return '/select-event';
+  if (auth.isAdmin) return '/admin';
+  if (auth.isEditor) return '/editor';
   if (auth.isReviewer) return '/reviewer';
   return '/author';
 };
@@ -53,9 +68,14 @@ router.beforeEach((to, _from, next) => {
     return next({ name: 'login' });
   }
 
-  // Requiere contexto de evento (no para select-event)
-  if (to.meta.requiresAuth && to.name !== 'select-event' && !auth.eventId) {
+  // Requiere contexto de evento (no para select-event ni admin global)
+  if (to.meta.requiresAuth && to.name !== 'select-event' && !auth.eventId && !auth.isGlobalAdmin) {
     return next({ name: 'select-event' });
+  }
+
+  // Si es admin global puede entrar a admin siempre
+  if (auth.isGlobalAdmin && to.name === 'admin') {
+    return next();
   }
 
   // Requiere rol específico

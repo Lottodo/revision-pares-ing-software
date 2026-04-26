@@ -14,12 +14,23 @@ export const useReviewsStore = defineStore('reviews', () => {
 
   // ── Revisor ──────────────────────────────────────────────────
   const fetchMyAssignments = async () => {
-    loading.value = true; error.value = null;
+    if (assignments.value.length === 0) loading.value = true;
+    error.value = null;
     try {
       const { data } = await reviewsApi.myAssignments();
       assignments.value = data.data;
     } catch (e) {
       error.value = e.response?.data?.error || 'Error al cargar asignaciones';
+    } finally { loading.value = false; }
+  };
+
+  const respondToAssignment = async (assignmentId, accept) => {
+    loading.value = true; error.value = null;
+    try {
+      await reviewsApi.respondToAssignment(assignmentId, accept);
+    } catch (e) {
+      error.value = e.response?.data?.error || 'Error al responder asignación';
+      throw e;
     } finally { loading.value = false; }
   };
 
@@ -83,7 +94,7 @@ export const useReviewsStore = defineStore('reviews', () => {
 
   return {
     assignments, paperReviews, paperAssignments, loading, error, clearError,
-    fetchMyAssignments, submitReview,
+    fetchMyAssignments, submitReview, respondToAssignment,
     fetchAssignmentsByPaper, createAssignment, cancelAssignment,
     fetchReviewsByPaper,
   };

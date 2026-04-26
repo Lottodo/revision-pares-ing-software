@@ -30,8 +30,10 @@ export const createAssignment = async ({ paperId, reviewerId, deadline }, editor
   });
   if (existing) { const e = new Error('Este revisor ya está asignado a este artículo.'); e.status = 409; throw e; }
 
+  const finalDeadline = deadline ? new Date(deadline) : new Date(Date.now() + 5 * 24 * 60 * 60 * 1000);
+
   const assignment = await prisma.assignment.create({
-    data: { paperId, reviewerId, deadline: deadline ?? null, status: 'PENDING' },
+    data: { paperId, reviewerId, deadline: finalDeadline, status: 'PENDING' },
     include: { reviewer: { select: { id: true, username: true } } },
   });
 
@@ -115,10 +117,40 @@ export const myAssignments = async (reviewerId, eventId) => {
 };
 
 /**
+ * Revisor acepta o rechaza una invitación.
+ */
+export const respondToAssignment = async (assignmentId, reviewerId, accept) => {
+  const assignment = await prisma.assignment.findUnique({ where: { id: assignmentId } });
+  if (!assignment) { const e = new Error('Asignación no encontrada.'); e.status = 404; throw e; }
+  if (assignment.reviewerId !== reviewerId) { const e = new Error('No eres el revisor de esta asignación.'); e.status = 403; throw e; }
+  if (assignment.status !== 'PENDING') { const e = new Error('La asignación ya fue respondida o cancelada.'); e.status = 400; throw e; }
+
+  const newStatus = accept ? 'IN_PROGRESS' : 'REJECTED';
+  const updateData = { status: newStatus };
+  if (accept) {
+    updateData.deadline = new Date(Date.now() + 5 * 24 * 60 * 60 * 1000);
+  }
+  
+  await prisma.assignment.update({
+    where: { id: assignmentId },
+    data: updateData,
+  });
+
+  await logHistory(
+    assignment.paperId,
+    accept ? 'Invitación aceptada' : 'Invitación rechazada',
+    `El revisor ha ${accept ? 'aceptado' : 'rechazado'} la invitación.`,
+    reviewerId
+  );
+
+  return { message: `Invitación ${accept ? 'aceptada' : 'rechazada'} exitosamente.` };
+};
+
+/**
  * Envía una evaluación. Solo el REVISOR asignado puede hacerlo.
  * Valida que la asignación le pertenezca y no haya sido ya evaluada.
  */
-export const submitReview = async (data, reviewerId) => {
+export const submitReview = async (data, file, reviewerId) => {
   const { assignmentId, ...reviewData } = data;
 
   const assignment = await prisma.assignment.findUnique({
@@ -135,12 +167,15 @@ export const submitReview = async (data, reviewerId) => {
   const existing = await prisma.review.findUnique({ where: { assignmentId } });
   if (existing) { const e = new Error('Ya existe una evaluación para esta asignación.'); e.status = 409; throw e; }
 
+  const annotatedPdfUrl = file ? `/uploads/${file.filename}` : null;
+
   const [review] = await prisma.$transaction([
     prisma.review.create({
       data: {
         paperId:    assignment.paperId,
         reviewerId,
         assignmentId,
+        annotatedPdfUrl,
         ...reviewData,
       },
     }),

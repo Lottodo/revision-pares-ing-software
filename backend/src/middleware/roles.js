@@ -21,6 +21,12 @@ export const requireRole = (...allowedRoles) => {
     }
 
     const userRoles = req.user.roles ?? [];
+    
+    // El Global Admin automáticamente tiene el rol ADMIN para cualquier evento
+    if (req.user.isGlobalAdmin && allowedRoles.includes('ADMIN')) {
+      return next();
+    }
+
     const hasRole = allowedRoles.some((role) => userRoles.includes(role));
 
     if (!hasRole) {
@@ -44,6 +50,17 @@ export const requireEventContext = (req, res, next) => {
       res,
       'El token no tiene contexto de evento. Selecciona un evento primero.'
     );
+  }
+  next();
+};
+
+/**
+ * Verifica que el usuario sea administrador global de la plataforma.
+ * Usado para crear/gestionar eventos sin depender de un eventId en el token.
+ */
+export const requireGlobalAdmin = (req, res, next) => {
+  if (!req.user?.isGlobalAdmin) {
+    return forbidden(res, 'Se requiere administrador global de la plataforma.');
   }
   next();
 };
