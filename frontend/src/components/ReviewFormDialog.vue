@@ -58,7 +58,20 @@
           :rules="[v => !!v || 'Requerido', v => v?.length >= 20 || 'Mínimo 20 caracteres']"
         />
 
-        <v-alert v-if="error" type="error" variant="tonal" density="compact" class="mt-3">{{ error }}</v-alert>
+        <v-file-input
+          v-model="form.annotatedPdf"
+          label="Subir PDF con Anotaciones (Opcional)"
+          accept="application/pdf"
+          prepend-inner-icon="mdi-file-pdf-box"
+          prepend-icon=""
+          variant="outlined"
+          density="comfortable"
+          hint="Si marcaste el PDF con correcciones, súbelo aquí."
+          persistent-hint
+          class="mt-2"
+        />
+
+        <v-alert v-if="error" type="error" variant="tonal" density="compact" class="mt-5">{{ error }}</v-alert>
       </v-card-text>
 
       <v-card-actions class="pa-4">
@@ -73,10 +86,10 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed } from 'vue';
+import { ref, reactive, computed, watch } from 'vue';
 import { useReviewsStore } from '../stores/reviews.js';
 
-const props = defineProps({ modelValue: Boolean, assignment: Object });
+const props = defineProps({ modelValue: Boolean, assignment: Object, prefilledNotes: String });
 const emit  = defineEmits(['update:modelValue', 'submitted']);
 const store = useReviewsStore();
 
@@ -90,6 +103,7 @@ const form = reactive({
   writingQuality: 0,
   relevance: 0,
   comments: '',
+  annotatedPdf: null,
 });
 
 const rubricFields = [
@@ -98,6 +112,19 @@ const rubricFields = [
   { key: 'writingQuality',      label: 'Calidad de Redacción' },
   { key: 'relevance',           label: 'Relevancia' },
 ];
+
+watch(() => props.modelValue, (isOpen) => {
+  if (isOpen) {
+    form.verdict = 'ACCEPT';
+    form.originality = 3;
+    form.methodologicalRigor = 3;
+    form.writingQuality = 3;
+    form.relevance = 3;
+    form.comments = props.prefilledNotes ? props.prefilledNotes + '\n\n' : '';
+    form.annotatedPdf = null;
+    error.value = '';
+  }
+});
 
 const isValid = computed(() =>
   form.verdict &&
@@ -112,7 +139,24 @@ const handleSubmit = async () => {
   if (!isValid.value || !props.assignment) return;
   loading.value = true; error.value = '';
   try {
-    await store.submitReview({ assignmentId: props.assignment.id, ...form });
+    let payload = { assignmentId: props.assignment.id, ...form };
+    
+    if (form.annotatedPdf) {
+      const fd = new FormData();
+      fd.append('assignmentId', props.assignment.id);
+      fd.append('verdict', form.verdict);
+      fd.append('originality', form.originality);
+      fd.append('methodologicalRigor', form.methodologicalRigor);
+      fd.append('writingQuality', form.writingQuality);
+      fd.append('relevance', form.relevance);
+      fd.append('comments', form.comments);
+      // Vuetify 3 v-file-input puede devolver un array o un archivo único
+      const fileObj = Array.isArray(form.annotatedPdf) ? form.annotatedPdf[0] : form.annotatedPdf;
+      if (fileObj) fd.append('annotatedPdf', fileObj);
+      payload = fd;
+    }
+
+    await store.submitReview(payload);
     emit('submitted');
     emit('update:modelValue', false);
   } catch (e) {

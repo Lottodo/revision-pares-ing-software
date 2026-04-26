@@ -28,9 +28,13 @@ export const myAssignments = handle((req) =>
   svc.myAssignments(req.user.id, req.user.eventId)
 );
 
+export const respondToAssignment = handle((req) =>
+  svc.respondToAssignment(parseInt(req.params.id), req.user.id, req.body.accept)
+);
+
 export const submitReview = async (req, res) => {
   try {
-    const result = await svc.submitReview(req.body, req.user.id);
+    const result = await svc.submitReview(req.body, req.file, req.user.id);
     return created(res, result);
   } catch (err) { return err.status ? fail(res, err.message, err.status) : serverError(res, err); }
 };

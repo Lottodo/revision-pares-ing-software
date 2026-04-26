@@ -29,6 +29,7 @@ enum PaperStatus {
   MAJOR_CHANGES
   ACCEPTED
   REJECTED
+  COMPLETED
 }
 
 enum AssignmentStatus {
@@ -36,6 +37,7 @@ enum AssignmentStatus {
   IN_PROGRESS
   EVALUATED
   CANCELLED
+  REJECTED
 }
 
 enum Verdict {
@@ -43,6 +45,12 @@ enum Verdict {
   MINOR_CHANGES
   MAJOR_CHANGES
   REJECT
+}
+
+enum RequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
 }
 
 // ─────────────────────────────────────────
@@ -54,11 +62,15 @@ model User {
   email        String   @unique @db.VarChar(255)
   passwordHash String   @db.VarChar(255)
   active       Boolean  @default(true)
+  isGlobalAdmin Boolean @default(false)
+  currentSessionId String? // Para restricción de sesión única (UUID)
+  specialty    String?  @db.VarChar(100)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
   // Relaciones
   eventRoles   EventUser[]
+  eventRequests EventRequest[]
   papers       Paper[]        @relation("AuthorPapers")
   assignments  Assignment[]   @relation("ReviewerAssignments")
   reviews      Review[]
@@ -84,6 +96,7 @@ model Event {
   // Relaciones
   members EventUser[]
   papers  Paper[]
+  requests EventRequest[]
 
   @@map("events")
 }
@@ -109,6 +122,24 @@ model EventUser {
 }
 
 // ─────────────────────────────────────────
+// SOLICITUDES DE ACCESO A EVENTOS
+// ─────────────────────────────────────────
+model EventRequest {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  eventId   Int
+  status    RequestStatus @default(PENDING)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, eventId]) // Solo una solicitud por evento a la vez
+  @@map("event_requests")
+}
+
+// ─────────────────────────────────────────
 // ARTÍCULOS — aislados por evento
 // ─────────────────────────────────────────
 model Paper {
@@ -118,6 +149,7 @@ model Paper {
   title       String      @db.VarChar(200)
   abstract    String      @db.Text
   documentUrl String      @db.VarChar(500)
+  area        String?     @db.VarChar(100)
   status      PaperStatus @default(RECEIVED)
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
@@ -187,6 +219,7 @@ model Review {
   writingQuality      Int      // 1–5
   relevance           Int      // 1–5
   comments            String   @db.Text
+  annotatedPdfUrl     String?  @db.VarChar(500)
   createdAt           DateTime @default(now())
 
   paper      Paper      @relation(fields: [paperId], references: [id])

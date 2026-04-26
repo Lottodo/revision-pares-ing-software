@@ -10,6 +10,7 @@ import {
   submitReviewSchema,
   paperIdParamSchema,
 } from './reviews.validator.js';
+import { upload } from '../../middleware/upload.js';
 
 const router = Router();
 router.use(verifyToken, requireEventContext);
@@ -21,9 +22,16 @@ router.get('/my-assignments',
   ctrl.myAssignments
 );
 
+// Aceptar o rechazar invitación
+router.put('/assignments/:id/respond',
+  requireRole('REVIEWER'),
+  ctrl.respondToAssignment
+);
+
 // Enviar evaluación
 router.post('/submit',
   requireRole('REVIEWER'),
+  upload.single('annotatedPdf'),
   validate(submitReviewSchema),
   ctrl.submitReview
 );

@@ -30,7 +30,7 @@
             prepend-icon="mdi-file-pdf-box"
             accept=".pdf"
             variant="outlined"
-            :rules="[v => !!v?.[0] || 'Se requiere un PDF']"
+            :rules="[v => (v && v.length !== 0) || 'Se requiere un archivo PDF']"
             class="mb-1"
           />
 
@@ -78,7 +78,11 @@ const handleSubmit = async () => {
     const fd = new FormData();
     fd.append('title',    form.title);
     fd.append('abstract', form.abstract);
-    fd.append('document', form.file[0]);
+    
+    // Vuetify puede devolver un File único o un Array de Files
+    const fileObj = Array.isArray(form.file) ? form.file[0] : form.file;
+    fd.append('document', fileObj);
+    
     await store.submit(fd);
     emit('uploaded');
     close();

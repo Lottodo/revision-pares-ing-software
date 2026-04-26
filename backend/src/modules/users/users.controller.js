@@ -13,4 +13,4 @@ export const updateUser    = handle((req) => svc.updateUser(parseInt(req.params.
 export const assignRole    = handle((req) => svc.assignRole(req.body));
 export const removeRole    = handle((req) => svc.removeRole(req.body));
 export const getUsersByEvent   = handle((req) => svc.getUsersByEvent(parseInt(req.params.eventId)));
-export const getReviewersByEvent = handle((req) => svc.getReviewersByEvent(parseInt(req.params.eventId)));
+export const getReviewersByEvent = handle((req) => svc.getReviewersByEvent(parseInt(req.params.eventId), req.query.paperId ? parseInt(req.query.paperId) : null));

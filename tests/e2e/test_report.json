@@ -1,0 +1,225 @@
+{
+  "generated_at": "2026-04-26T01:21:52.544734",
+  "total": 31,
+  "passed": 26,
+  "failed": 5,
+  "results": [
+    {
+      "suite": "Offline",
+      "name": "Frontend carga (HTTP 200)",
+      "passed": true,
+      "detail": "Status 200 en 110 ms",
+      "duration_ms": 110.0
+    },
+    {
+      "suite": "Offline",
+      "name": "manifest.webmanifest accesible",
+      "passed": false,
+      "detail": "Expecting value: line 1 column 1 (char 0)",
+      "duration_ms": 0
+    },
+    {
+      "suite": "Offline",
+      "name": "sw.js servido por Vite",
+      "passed": true,
+      "detail": "Tamaño: 627 bytes",
+      "duration_ms": 0
+    },
+    {
+      "suite": "Offline",
+      "name": "Workbox/precache en sw.js",
+      "passed": false,
+      "detail": "No se detectó workbox",
+      "duration_ms": 0
+    },
+    {
+      "suite": "Offline",
+      "name": "Backend API health check",
+      "passed": true,
+      "detail": "{\"status\":\"ok\",\"timestamp\":\"2026-04-26T08:21:51.078Z\"}",
+      "duration_ms": 54.2
+    },
+    {
+      "suite": "MySQL CRUD",
+      "name": "CREATE usuario (registro)",
+      "passed": true,
+      "detail": "HTTP 201",
+      "duration_ms": 200.7
+    },
+    {
+      "suite": "MySQL CRUD",
+      "name": "READ usuario (login admin)",
+      "passed": true,
+      "detail": "Token JWT obtenido",
+      "duration_ms": 0
+    },
+    {
+      "suite": "MySQL CRUD",
+      "name": "READ usuario (login multiusuario)",
+      "passed": true,
+      "detail": "Evento: Congreso de COMPUTACION",
+      "duration_ms": 0
+    },
+    {
+      "suite": "MySQL CRUD",
+      "name": "READ lista de eventos",
+      "passed": true,
+      "detail": "8 eventos encontrados",
+      "duration_ms": 13.2
+    },
+    {
+      "suite": "MySQL CRUD",
+      "name": "READ lista de artículos",
+      "passed": false,
+      "detail": "0 artículos",
+      "duration_ms": 6.3
+    },
+    {
+      "suite": "MySQL CRUD",
+      "name": "READ lista de usuarios (admin)",
+      "passed": true,
+      "detail": "101 usuarios",
+      "duration_ms": 46.9
+    },
+    {
+      "suite": "MySQL CRUD",
+      "name": "READ revisores por evento",
+      "passed": true,
+      "detail": "15 revisores disponibles",
+      "duration_ms": 31.0
+    },
+    {
+      "suite": "MySQL CRUD",
+      "name": "Validación doble ciego (409 esperado)",
+      "passed": true,
+      "detail": "HTTP ERR — Bloqueado correctamente ✓",
+      "duration_ms": 55.7
+    },
+    {
+      "suite": "MySQL vs MongoDB",
+      "name": "Datos estructurados con relaciones fijas",
+      "passed": true,
+      "detail": "El dominio de revisión por pares tiene entidades con FK estrictas: User→EventUser→Paper→Assignment→Review→PaperHistory. Un modelo relacional garantiza integridad referencial nativa (ON DELETE CASCADE, FK).",
+      "duration_ms": 0
+    },
+    {
+      "suite": "MySQL vs MongoDB",
+      "name": "Integridad referencial y transacciones ACID",
+      "passed": true,
+      "detail": "Cuando un revisor acepta una invitación se deben actualizar Assignment.status y crear PaperHistory.event en la misma transacción. MySQL garantiza atomicidad; MongoDB requiere sesiones multi-documento (más complejo).",
+      "duration_ms": 0
+    },
+    {
+      "suite": "MySQL vs MongoDB",
+      "name": "Prisma ORM — soporte completo con MySQL",
+      "passed": true,
+      "detail": "Prisma tiene soporte de primera clase para MySQL con migraciones automáticas (prisma migrate dev/deploy), tipado TypeScript end-to-end y generación del cliente. Reducción significativa de boilerplate vs queries crudas.",
+      "duration_ms": 0
+    },
+    {
+      "suite": "MySQL vs MongoDB",
+      "name": "Consultas JOIN complejas requeridas",
+      "passed": true,
+      "detail": "Las vistas del Editor necesitan: Paper JOIN User JOIN Assignment JOIN Review en una sola consulta. En MySQL esto es natural; en MongoDB requeriría $lookup anidados y pierde legibilidad.",
+      "duration_ms": 0
+    },
+    {
+      "suite": "MySQL vs MongoDB",
+      "name": "Esquema fijo predecible — sin variabilidad de documentos",
+      "passed": true,
+      "detail": "MongoDB brilla cuando los documentos tienen estructura variable. Aquí todos los artículos, evaluaciones y asignaciones tienen campos fijos. La flexibilidad de documentos de MongoDB no aporta valor y aumenta riesgo de datos inconsistentes.",
+      "duration_ms": 0
+    },
+    {
+      "suite": "MySQL vs MongoDB",
+      "name": "Despliegue simple con Docker Compose",
+      "passed": true,
+      "detail": "La imagen oficial mysql:8.0 en Docker Compose es estable, bien documentada y soporta healthcheck nativo. No requiere replica set para funcionar (MongoDB necesita replica set para transacciones ACID completas).",
+      "duration_ms": 0
+    },
+    {
+      "suite": "MySQL vs MongoDB",
+      "name": "MongoDB podría usarse si...",
+      "passed": false,
+      "detail": "MongoDB sería preferible si el sistema guardara contenido dinámico (ej. el texto completo de artículos con secciones variables, metadatos de conferencias sin esquema fijo, logs de eventos en tiempo real). Para esos casos su indexación de texto completo y flexibilidad de esquema aportan valor real.",
+      "duration_ms": 0
+    },
+    {
+      "suite": "MySQL vs MongoDB",
+      "name": "MySQL conectado (via Docker health)",
+      "passed": true,
+      "detail": "Backend confirma conexión a MySQL: {\"status\":\"ok\",\"timestamp\":\"2026-04-26T08:21:51.916Z\"}",
+      "duration_ms": 2.9
+    },
+    {
+      "suite": "Docker",
+      "name": "Contenedor Backend Node.js/Express (congress_backend)",
+      "passed": true,
+      "detail": "Estado: running",
+      "duration_ms": 191.6
+    },
+    {
+      "suite": "Docker",
+      "name": "Contenedor Base de datos MySQL 8 (congress_mysql)",
+      "passed": true,
+      "detail": "Estado: running",
+      "duration_ms": 80.0
+    },
+    {
+      "suite": "Docker",
+      "name": "Contenedor Frontend Vue 3 / Vite PWA (congress_frontend)",
+      "passed": true,
+      "detail": "Estado: running",
+      "duration_ms": 72.8
+    },
+    {
+      "suite": "Docker",
+      "name": "Backend responde en puerto 3000",
+      "passed": true,
+      "detail": "HTTP 200 en 3 ms",
+      "duration_ms": 3.3
+    },
+    {
+      "suite": "Docker",
+      "name": "Frontend responde en puerto 5173",
+      "passed": true,
+      "detail": "HTTP 200 en 16 ms",
+      "duration_ms": 16.3
+    },
+    {
+      "suite": "Docker",
+      "name": "Red app-net: backend→mysql funcional",
+      "passed": false,
+      "detail": "Fallo",
+      "duration_ms": 3.6
+    },
+    {
+      "suite": "Docker",
+      "name": "Volumen /app/uploads montado",
+      "passed": true,
+      "detail": "Backend levantó correctamente (uploads_dir configurado)",
+      "duration_ms": 0
+    },
+    {
+      "suite": "Docker",
+      "name": "Política restart Backend Node.js/Express",
+      "passed": true,
+      "detail": "RestartPolicy: unless-stopped",
+      "duration_ms": 0
+    },
+    {
+      "suite": "Docker",
+      "name": "Política restart Base de datos MySQL 8",
+      "passed": true,
+      "detail": "RestartPolicy: unless-stopped",
+      "duration_ms": 0
+    },
+    {
+      "suite": "Docker",
+      "name": "Política restart Frontend Vue 3 / Vite PWA",
+      "passed": true,
+      "detail": "RestartPolicy: unless-stopped",
+      "duration_ms": 0
+    }
+  ]
+}

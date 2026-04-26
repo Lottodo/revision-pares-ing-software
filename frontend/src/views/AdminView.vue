@@ -4,26 +4,27 @@
       <v-icon color="error" size="32" class="mr-3">mdi-shield-account</v-icon>
       <div>
         <h1 class="text-h5 font-weight-bold">Panel de Administración</h1>
-        <p class="text-body-2 text-medium-emphasis">{{ auth.activeEvent?.event?.name }}</p>
+        <p class="text-body-2 text-medium-emphasis">{{ auth.activeEvent?.event?.name || 'Administración Global' }}</p>
       </div>
+      <v-spacer></v-spacer>
+      <v-btn color="error" variant="text" prepend-icon="mdi-logout" @click="handleLogout">
+        Cerrar Sesión
+      </v-btn>
     </div>
 
     <v-tabs v-model="tab" color="primary" class="mb-6">
       <v-tab value="users">
         <v-icon start>mdi-account-group</v-icon>Usuarios del Sistema
       </v-tab>
-      <v-tab value="event-members">
-        <v-icon start>mdi-account-multiple-check</v-icon>Miembros del Evento
-      </v-tab>
       <v-tab value="events">
         <v-icon start>mdi-calendar-multiple</v-icon>Eventos
       </v-tab>
     </v-tabs>
 
-    <v-tabs-window v-model="tab">
+    <v-window v-model="tab">
 
       <!-- ── TAB: TODOS LOS USUARIOS ──────────────────────────── -->
-      <v-tabs-window-item value="users">
+      <v-window-item value="users">
         <v-card rounded="xl" elevation="2">
           <v-card-title class="pa-4 d-flex align-center">
             <span>Usuarios registrados</span>
@@ -82,48 +83,10 @@
             </template>
           </v-data-table>
         </v-card>
-      </v-tabs-window-item>
-
-      <!-- ── TAB: MIEMBROS DEL EVENTO ACTIVO ─────────────────── -->
-      <v-tabs-window-item value="event-members">
-        <v-card rounded="xl" elevation="2">
-          <v-card-title class="pa-4">
-            Miembros de: <strong class="ml-1">{{ auth.activeEvent?.event?.name }}</strong>
-          </v-card-title>
-
-          <v-progress-linear v-if="loadingMembers" indeterminate color="primary" />
-
-          <v-data-table
-            :headers="memberHeaders"
-            :items="eventMembers"
-            :loading="loadingMembers"
-            hover
-            rounded="xl"
-          >
-            <template #item.roles="{ item }">
-              <v-chip
-                v-for="role in item.roles"
-                :key="role"
-                :color="roleColor(role)"
-                size="small"
-                variant="tonal"
-                closable
-                class="mr-1"
-                @click:close="removeRole(item, role)"
-              >{{ roleLabel(role) }}</v-chip>
-            </template>
-
-            <template #item.actions="{ item }">
-              <v-btn size="small" variant="tonal" color="primary" @click="openAssignRoleEvent(item)">
-                <v-icon start size="16">mdi-plus</v-icon>Agregar rol
-              </v-btn>
-            </template>
-          </v-data-table>
-        </v-card>
-      </v-tabs-window-item>
+      </v-window-item>
 
       <!-- ── TAB: EVENTOS ──────────────────────────────────────── -->
-      <v-tabs-window-item value="events">
+      <v-window-item value="events">
         <div class="d-flex justify-end mb-4">
           <v-btn color="primary" prepend-icon="mdi-plus" rounded="lg" @click="showCreateEvent = true">
             Nuevo Evento
@@ -153,6 +116,10 @@
                 {{ ev.description || 'Sin descripción' }}
               </v-card-text>
               <v-card-actions>
+                <v-btn size="small" variant="tonal" color="info" prepend-icon="mdi-account-group" @click="openEventMembersDialog(ev)">
+                  Miembros
+                </v-btn>
+                <v-spacer />
                 <v-btn size="small" variant="text" prepend-icon="mdi-pencil" @click="openEditEvent(ev)">
                   Editar
                 </v-btn>
@@ -168,11 +135,51 @@
             </v-card>
           </v-col>
         </v-row>
-      </v-tabs-window-item>
+      </v-window-item>
 
-    </v-tabs-window>
+    </v-window>
 
     <!-- ── Dialogs ───────────────────────────────────────────── -->
+    <v-dialog v-model="showMembersDialog" max-width="800">
+      <v-card rounded="xl">
+        <v-toolbar color="primary" density="compact">
+          <v-toolbar-title class="text-white text-body-1">
+            Miembros de: <strong>{{ selectedEventForMembers?.name }}</strong>
+          </v-toolbar-title>
+          <v-btn icon="mdi-close" color="white" variant="text" @click="showMembersDialog = false" />
+        </v-toolbar>
+        
+        <v-card-text class="pa-0">
+          <v-progress-linear v-if="loadingMembers" indeterminate color="primary" />
+          <v-data-table
+            :headers="memberHeaders"
+            :items="eventMembers"
+            :loading="loadingMembers"
+            hover
+          >
+            <template #item.roles="{ item }">
+              <v-chip
+                v-for="role in item.roles"
+                :key="role"
+                :color="roleColor(role)"
+                size="small"
+                variant="tonal"
+                closable
+                class="mr-1"
+                @click:close="removeRoleSpecific(item, role)"
+              >{{ roleLabel(role) }}</v-chip>
+            </template>
+
+            <template #item.actions="{ item }">
+              <v-btn size="small" variant="tonal" color="primary" @click="openAssignRoleEventSpecific(item)">
+                <v-icon start size="16">mdi-plus</v-icon>Agregar rol
+              </v-btn>
+            </template>
+          </v-data-table>
+        </v-card-text>
+      </v-card>
+    </v-dialog>
+
     <AssignRoleDialog
       v-model="showAssignRole"
       :user="selectedUser"
@@ -198,9 +205,11 @@ import { useAuthStore } from '../stores/auth.js';
 import { usersApi, eventsApi } from '../api/index.js';
 import AssignRoleDialog from '../components/AssignRoleDialog.vue';
 import CreateEventDialog from '../components/CreateEventDialog.vue';
+import { useRouter } from 'vue-router';
 
-const auth = useAuthStore();
-const tab  = ref('users');
+const auth   = useAuthStore();
+const router = useRouter();
+const tab    = ref('users');
 
 // ── Estado ───────────────────────────────────────────────────
 const users         = ref([]);
@@ -208,9 +217,11 @@ const eventMembers  = ref([]);
 const events        = ref([]);
 const userSearch    = ref('');
 const selectedUser  = ref(null);
-const editingEvent  = ref(null);
-const showAssignRole   = ref(false);
-const showCreateEvent  = ref(false);
+const editingEvent   = ref(null);
+const selectedEventForMembers = ref(null);
+const showAssignRole = ref(false);
+const showCreateEvent= ref(false);
+const showMembersDialog = ref(false);
 const loadingUsers   = ref(false);
 const loadingMembers = ref(false);
 const loadingEvents  = ref(false);
@@ -255,11 +266,11 @@ const loadUsers = async () => {
   } finally { loadingUsers.value = false; }
 };
 
-const loadEventMembers = async () => {
-  if (!auth.eventId) return;
+const loadEventMembers = async (eventId) => {
+  if (!eventId) return;
   loadingMembers.value = true;
   try {
-    const { data } = await usersApi.byEvent(auth.eventId);
+    const { data } = await usersApi.byEvent(eventId);
     eventMembers.value = data.data;
   } finally { loadingMembers.value = false; }
 };
@@ -273,7 +284,10 @@ const loadEvents = async () => {
 };
 
 const refreshAll = async () => {
-  await Promise.all([loadUsers(), loadEventMembers()]);
+  await Promise.all([loadUsers(), loadEvents(), auth.refreshMe()]);
+  if (showMembersDialog.value && selectedEventForMembers.value) {
+    await loadEventMembers(selectedEventForMembers.value.id);
+  }
   notify('Cambio aplicado correctamente.');
 };
 
@@ -283,16 +297,22 @@ const openAssignRole = (user) => {
   showAssignRole.value = true;
 };
 
-const openAssignRoleEvent = (member) => {
-  // Pre-seleccionar el usuario con el evento activo
-  selectedUser.value = { ...member, preselectedEventId: auth.eventId };
+const openEventMembersDialog = async (ev) => {
+  selectedEventForMembers.value = ev;
+  eventMembers.value = [];
+  showMembersDialog.value = true;
+  await loadEventMembers(ev.id);
+};
+
+const openAssignRoleEventSpecific = (member) => {
+  selectedUser.value = { ...member, preselectedEventId: selectedEventForMembers.value.id };
   showAssignRole.value = true;
 };
 
-const removeRole = async (member, role) => {
+const removeRoleSpecific = async (member, role) => {
   try {
-    await usersApi.removeRole({ userId: member.id, eventId: auth.eventId, role });
-    await loadEventMembers();
+    await usersApi.removeRole({ userId: member.id, eventId: selectedEventForMembers.value.id, role });
+    await loadEventMembers(selectedEventForMembers.value.id);
     notify(`Rol ${role} removido de ${member.username}.`);
   } catch (e) {
     notify(e.response?.data?.error || 'Error al remover rol', 'error');
@@ -324,9 +344,14 @@ const toggleEvent = async (ev) => {
   }
 };
 
+const handleLogout = async () => {
+  await auth.logout();
+  router.push({ name: 'login' });
+};
+
 // ── Helpers ───────────────────────────────────────────────────
 const roleColor = (r) => ({ ADMIN: 'error', EDITOR: 'secondary', REVIEWER: 'warning', AUTHOR: 'accent' }[r] || 'grey');
-const roleLabel = (r) => ({ ADMIN: 'Admin', EDITOR: 'Editor', REVIEWER: 'Revisor', AUTHOR: 'Autor' }[r] || r);
+const roleLabel = (r) => ({ ADMIN: 'Administrador', EDITOR: 'Editor', REVIEWER: 'Revisor', AUTHOR: 'Autor' }[r] || r);
 
-onMounted(() => Promise.all([loadUsers(), loadEventMembers(), loadEvents()]));
+onMounted(() => Promise.all([loadUsers(), loadEvents()]));
 </script>

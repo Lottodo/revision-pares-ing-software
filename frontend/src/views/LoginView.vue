@@ -49,7 +49,10 @@
           </v-card-text>
 
           <v-divider />
-          <v-card-text class="pa-4">
+          <v-card-text class="pa-4 text-center">
+            <span class="text-medium-emphasis">¿No tienes cuenta? </span>
+            <router-link to="/register" class="text-primary font-weight-bold text-decoration-none mb-4 d-inline-block">Regístrate aquí</router-link>
+            
             <p class="text-caption text-medium-emphasis text-center mb-2">Cuentas de prueba (password: 1234)</p>
             <v-chip-group class="justify-center" column>
               <v-chip
@@ -96,10 +99,12 @@ const handleLogin = async () => {
   errorMsg.value = '';
   try {
     const result = await auth.login({ username: form.username.trim(), password: form.password });
-    // Si no tiene evento activo → selector de eventos
-    if (!auth.eventId) {
+    // Si no tiene evento activo y no es admin global → selector de eventos
+    if (!auth.eventId && !auth.isGlobalAdmin) {
       router.push({ name: 'select-event' });
-    } else if (auth.isAdmin || auth.isEditor) {
+    } else if (auth.isAdmin) {
+      router.push({ name: 'admin' });
+    } else if (auth.isEditor) {
       router.push({ name: 'editor' });
     } else if (auth.isReviewer) {
       router.push({ name: 'reviewer' });

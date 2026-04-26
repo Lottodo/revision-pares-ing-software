@@ -47,16 +47,18 @@ import { usePapersStore } from '../stores/papers.js';
 import PaperCard from '../components/PaperCard.vue';
 import UploadPaperDialog from '../components/UploadPaperDialog.vue';
 import NewVersionDialog from '../components/NewVersionDialog.vue';
+import { useRouter } from 'vue-router';
 
 const auth  = useAuthStore();
 const store = usePapersStore();
+const router = useRouter();
 
 const showUpload     = ref(false);
 const showNewVersion = ref(false);
 const selectedPaperId = ref(null);
 
 const openDetail = (paper) => {
-  // Navegar al detalle
+  router.push({ name: 'paper-detail', params: { id: paper.id } });
 };
 const openNewVersion = (paper) => {
   selectedPaperId.value = paper.id;

@@ -8,9 +8,10 @@ export const createPaperSchema = z.object({
 
 export const updateStatusSchema = z.object({
   status: z.enum(
-    ['RECEIVED', 'UNDER_REVIEW', 'MINOR_CHANGES', 'MAJOR_CHANGES', 'ACCEPTED', 'REJECTED'],
-    { errorMap: () => ({ message: 'Estado inválido' }) }
+    ['RECEIVED', 'UNDER_REVIEW', 'MINOR_CHANGES', 'MAJOR_CHANGES', 'ACCEPTED', 'REJECTED', 'COMPLETED'],
+    { errorMap: () => ({ message: 'Estado inválido. Valores permitidos: RECEIVED, UNDER_REVIEW, MINOR_CHANGES, MAJOR_CHANGES, ACCEPTED, REJECTED, COMPLETED' }) }
   ),
+  editorComment: z.string().max(1000).optional(),
 });
 
 export const paperIdParamSchema = z.object({
