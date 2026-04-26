@@ -1,206 +1,297 @@
 # Sistema de Revisión de Congresos — PWA
 
-Plataforma de gestión de congresos académicos con revisión por pares doble ciego.  
-**Stack:** Node.js · Express · Prisma · MySQL 8 · Vue 3 · Vuetify · Docker
+Plataforma de gestión de congresos académicos con **revisión por pares doble ciego**.  
+**Stack:** Node.js · Express · Prisma ORM · MySQL 8 · Vue 3 · Vuetify 3 · Vite · Docker
 
 ---
 
 ## 1. Requisitos Previos
 
-Para poder compilar y ejecutar este proyecto, necesitas tener instaladas las siguientes herramientas en tu computadora. Las instrucciones están pensadas para que cualquier persona, sin importar su experiencia previa, pueda seguirlas.
+### Opción A: Con Docker ✅ (Recomendado)
+Solo necesitas **una** herramienta:
+- **Docker Desktop**: [Descargar aquí](https://www.docker.com/products/docker-desktop/)  
+  Asegúrate de que la aplicación esté abierta y corriendo antes de continuar.
 
-### Opción A: Usando Docker (Recomendado y más fácil)
-Docker es una herramienta que empaqueta todo el software necesario (base de datos, backend, frontend) para que no tengas que instalar o configurar cada cosa por separado en tu sistema.
-- **Docker Desktop**: [Descargar e instalar Docker Desktop](https://www.docker.com/products/docker-desktop/).
-  - *Nota*: Asegúrate de que la aplicación Docker Desktop esté abierta y ejecutándose en segundo plano antes de continuar.
-- **Git**: [Descargar Git](https://git-scm.com/downloads) para poder descargar el código fuente.
+> Docker empaqueta automáticamente la base de datos, el backend y el frontend. No necesitas instalar Node.js, MySQL ni nada más.
 
-### Opción B: Instalación Manual (Sin Docker)
-Si prefieres no usar Docker, deberás instalar cada componente individualmente:
-- **Node.js**: [Descargar Node.js (Versión 20 o superior)](https://nodejs.org/). La instalación incluye `npm`, que es el gestor de paquetes que usaremos.
-- **MySQL 8**: [Descargar MySQL Community Server](https://dev.mysql.com/downloads/mysql/). Durante la instalación, asegúrate de recordar la contraseña que le asignes al usuario `root`.
-- **Git**: [Descargar Git](https://git-scm.com/downloads).
+### Opción B: Sin Docker (Manual)
+Instala cada componente por separado:
+- **Node.js 20+**: [Descargar](https://nodejs.org/)
+- **MySQL 8**: [Descargar](https://dev.mysql.com/downloads/mysql/)
+- **Git**: [Descargar](https://git-scm.com/downloads)
 
 ---
 
-## 2. Instrucciones de Compilación Paso a Paso
+## 2. Puesta en Marcha
 
-Sigue estos pasos cuidadosamente para poner en marcha el proyecto en tu máquina local.
+### Paso 1 — Descargar el proyecto
 
-### Paso 1: Descargar el proyecto
-Abre la terminal de tu computadora (Símbolo del sistema, PowerShell en Windows o Terminal en macOS/Linux) y ejecuta los siguientes comandos para descargar y entrar a la carpeta del proyecto:
+**Con Git:**
 ```bash
 git clone <url-del-repositorio>
 cd revision-pares-ing-software
 ```
 
-### Paso 2: Compilar y ejecutar (Elige una opción)
+**Sin Git:** Descarga el ZIP desde GitHub → *Code → Download ZIP*, extráelo y abre una terminal dentro de la carpeta.
 
-#### Opción A: Ejecución con Docker (Recomendado)
-Esta es la forma más rápida y con menos probabilidades de error para hacer funcionar el proyecto.
+---
 
-1. Asegúrate de tener **Docker Desktop** abierto y ejecutándose.
-2. En la terminal, dentro de la carpeta del proyecto, ejecuta el siguiente comando:
-   ```bash
-   docker compose up --build
-   ```
-3. **¡Listo!** Ahora solo debes esperar. La primera vez que ejecutes esto, Docker descargará todo lo necesario, creará la base de datos automáticamente, insertará datos de prueba y encenderá los servidores.
-4. El proceso termina cuando veas mensajes en la terminal indicando que los servicios están listos. No cierres esta terminal mientras quieras usar la aplicación.
+### Paso 2 — Compilar y ejecutar
 
-#### Opción B: Ejecución Manual (Sin Docker)
-Si elegiste instalar Node.js y MySQL por tu cuenta, sigue estos pasos:
+#### ▶ Opción A: Docker (Recomendado)
 
-**1. Configurar la Base de Datos (MySQL)**
-Abre la terminal o tu gestor de MySQL (como MySQL Workbench) y crea la base de datos ejecutando este comando SQL:
+```bash
+docker compose up --build
+```
+
+- **Primera vez:** tarda 5–10 minutos (descarga imágenes de Node y MySQL).
+- **Siguientes veces:** `docker compose up` (sin `--build`) es mucho más rápido.
+
+Cuando veas esto en la terminal, todo está listo:
+
+```
+congress_mysql    | ready for connections.
+congress_backend  | Server running on port 3000
+congress_frontend | Local: http://localhost:5173/
+```
+
+> ⚠️ No cierres la terminal mientras uses la aplicación.
+
+---
+
+#### ▶ Opción B: Manual (Sin Docker)
+
+**1. Crear la base de datos en MySQL:**
 ```sql
 CREATE DATABASE peerreview;
 ```
 
-**2. Iniciar el Backend (Servidor de la API)**
-Abre una terminal y navega a la carpeta del backend:
+**2. Configurar el backend:**
 ```bash
 cd backend
-```
-Instala todas las librerías necesarias:
-```bash
 npm install
 ```
-Configura la conexión a la base de datos:
-1. En la carpeta `backend`, busca el archivo llamado `.env.example`.
-2. Haz una copia de ese archivo y renómbrala a `.env`.
-3. Abre el nuevo archivo `.env` con cualquier editor de texto y busca la línea que dice `DATABASE_URL`.
-4. Modifica esa línea para que tenga tu usuario y contraseña de MySQL. Por ejemplo, si tu contraseña de root es "secreta", la línea debería verse así:
-   `DATABASE_URL="mysql://root:secreta@localhost:3306/peerreview"`
 
-Prepara la base de datos y llénala con datos de prueba:
+Copia el archivo de configuración y ajusta tus credenciales de MySQL:
+```bash
+# En Windows (PowerShell):
+Copy-Item .env.example .env
+# En macOS/Linux:
+cp .env.example .env
+```
+
+Abre el archivo `.env` y edita la línea `DATABASE_URL` con tu usuario y contraseña de MySQL:
+```
+DATABASE_URL="mysql://root:TU_CONTRASEÑA@localhost:3306/peerreview"
+```
+
+Ejecuta las migraciones e inserta los datos de prueba:
 ```bash
 npx prisma migrate dev --name init
 npm run seed
 ```
-Inicia el servidor backend:
+
+Inicia el servidor backend *(déjalo corriendo)*:
 ```bash
 npm run dev
 ```
-*(El backend quedará corriendo en esta terminal. Déjala abierta y no la cierres).*
 
-**3. Iniciar el Frontend (La interfaz visual)**
-Abre **una nueva ventana o pestaña** en tu terminal y navega a la carpeta del frontend:
+**3. Configurar e iniciar el frontend** *(en una nueva terminal)*:
 ```bash
 cd frontend
-```
-Instala las librerías necesarias:
-```bash
 npm install
-```
-Inicia la aplicación web:
-```bash
 npm run dev
 ```
 
 ---
 
-## 3. Direcciones de Acceso y Uso
+## 3. Acceso a la Aplicación
 
-Una vez que hayas completado el Paso 2 (ya sea con Docker o Manual), abre tu navegador web favorito (Chrome, Firefox, Edge, etc.) y visita las siguientes direcciones:
+Una vez levantado (con cualquier opción), abre el navegador en:
 
-- **Aplicación Web (Frontend):** [http://localhost:5173](http://localhost:5173)
-- **Servidor de Datos (Backend):** [http://localhost:3000](http://localhost:3000)
-
-### Cuentas de prueba para iniciar sesión
-La aplicación ya viene con cuentas creadas para que puedas probarla inmediatamente.  
-**La contraseña para todas las cuentas es:** `1234`
-
-| Usuario       | Rol en Congreso IA 2025 | Rol en Simposio SW 2025 |
-|---------------|------------------------|------------------------|
-| `admin`       | Administrador          | Administrador          |
-| `editor_ia`   | Editor                 | —                      |
-| `editor_sw`   | —                      | Editor                 |
-| `revisor1`    | Revisor                | —                      |
-| `revisor2`    | Revisor                | Revisor                |
-| `autor1`      | Autor                  | Autor                  |
-| `multiusuario`| Autor                  | Revisor                |
+| Servicio | URL |
+|---|---|
+| **Aplicación Web** | [http://localhost:5173](http://localhost:5173) |
+| **API Backend** | [http://localhost:3000](http://localhost:3000) |
 
 ---
 
-## 4. Errores Comunes y Notas Adicionales
+## 4. Cuentas de Prueba
 
-Aquí tienes soluciones a los problemas más frecuentes que podrían ocurrir al intentar compilar o ejecutar el proyecto:
+El seed crea automáticamente **100 usuarios** con la contraseña `1234` para todos.  
+Las dos cuentas principales para probar el sistema son:
 
-### ❌ Error: `port is already allocated` o `address already in use`
-- **Causa:** El puerto 3000 (usado por el Backend) o el puerto 5173 (usado por el Frontend) ya está siendo ocupado por otro programa en tu computadora o por un intento anterior de correr este mismo proyecto que no se cerró correctamente.
-- **Solución:** Cierra todas las ventanas de terminal que tengas abiertas. Si estás usando Docker, ejecuta el comando `docker compose down` para forzar la detención de cualquier contenedor que haya quedado en segundo plano, y luego vuelve a intentar arrancar el proyecto.
+> ⚠️ Para iniciar sesión, utiliza el nombre de usuario (username), no el correo electrónico.
 
-### ❌ Error en Docker: `docker daemon is not running` o `error during connect`
-- **Causa:** La aplicación de Docker no está encendida en tu computadora.
-- **Solución:** Abre la aplicación **Docker Desktop** desde tu menú de inicio y espera unos segundos hasta que el ícono (usualmente una ballena) indique que el motor está corriendo ("Engine running") antes de ejecutar los comandos en la terminal.
+### 👤 Cuentas principales
 
-### ❌ Error (Manual): `Can't connect to MySQL server on 'localhost'`
-- **Causa:** El servidor MySQL no está encendido en tu computadora, o los datos en tu archivo `.env` no apuntan al puerto correcto.
-- **Solución:** Verifica que el servicio de MySQL esté corriendo (En Windows, puedes buscar "Servicios" en el menú de inicio, buscar MySQL y darle a Iniciar).
+| Tipo de cuenta | Usuario | Contraseña | Descripción |
+|---|---|---|---|
+| **Admin Global** | `admin_root` | `1234` | Acceso total al sistema. Puede crear eventos, asignar roles y ver todos los datos. |
+| **Multiusuario** | `multi_user` | `1234` | Tiene **roles distintos según el congreso**: Autor en el 1°, Revisor en el 2°, Editor en el 3°. Ideal para probar el cambio de contexto. |
 
-### ❌ Error (Manual): `PrismaClientInitializationError: Access denied for user`
-- **Causa:** La contraseña o el usuario de la base de datos en tu archivo `.env` son incorrectos.
-- **Solución:** Abre el archivo `.env` que creaste dentro de la carpeta `backend` y verifica cuidadosamente que la parte de la `DATABASE_URL` contenga el usuario y la contraseña correctos de tu instalación de MySQL.
+### 👥 Usuarios generados automáticamente
 
-### ❌ Error en Docker: La aplicación se queda "cargando" y no avanza
-- **Causa:** Puede haber un conflicto con archivos temporales antiguos o una instalación previa corrupta.
-- **Solución:** Detén todo, borra los datos temporales e inicia de nuevo limpiamente ejecutando estos dos comandos:
-  ```bash
-  docker compose down -v
-  docker compose up --build
-  ```
+El seed genera 98 usuarios adicionales con el patrón:
+
+- **Email:** `nombre.apellido##@test.com`  *(ej: `ana.garcia1@test.com`)*
+- **Contraseña:** `1234` (igual para todos)
+- **Roles:** distribuidos aleatoriamente entre Autor, Revisor y Editor en cada congreso
+
+> 💡 **Tip:** Para ver todos los usuarios y sus roles, abre Prisma Studio:
+> ```bash
+> # Con Docker:
+> docker compose exec backend npx prisma studio
+> # Sin Docker (desde la carpeta backend/):
+> npx prisma studio
+> ```
+> Luego abre [http://localhost:5555](http://localhost:5555)
 
 ---
 
-## 5. Detalles Técnicos y Arquitectura (Para Desarrolladores)
+## 5. Roles y Permisos
 
-Si deseas modificar el código o entender cómo funciona por dentro, aquí tienes la información técnica del proyecto.
+El sistema implementa **revisión doble ciego** por congreso. Cada usuario puede tener un rol diferente en cada evento.
 
-### Arquitectura de Carpetas
+| Rol | Qué puede hacer |
+|---|---|
+| **Admin Global** | Crear/editar eventos, asignar cualquier rol, ver todo el sistema |
+| **Editor** | Ver todos los artículos del congreso, asignar revisores, cambiar estados, ver dictámenes |
+| **Revisor** | Ver solo los artículos que le fueron asignados (sin saber quién los escribió), enviar su evaluación con rúbrica |
+| **Autor** | Subir artículos en PDF, consultar el estado de su artículo (sin saber quién lo revisa) |
+
+---
+
+## 6. Estructura del Proyecto
+
 ```
-project/
+revision-pares-ing-software/
 ├── backend/
 │   ├── src/
-│   │   ├── app.js                  # Express: middlewares + rutas principales
-│   │   ├── server.js               # Punto de entrada HTTP
-│   │   ├── config/                 # Configuración de Prisma y Entorno
-│   │   ├── middleware/             # Seguridad (Autenticación JWT, Roles) y subidas (Multer)
-│   │   ├── modules/                # Módulos de negocio (Auth, Users, Events, Papers, Reviews)
-│   │   └── shared/                 # Helpers compartidos
+│   │   ├── app.js              # Express: middlewares + rutas
+│   │   ├── server.js           # Punto de entrada HTTP
+│   │   ├── config/             # Configuración de Prisma y entorno
+│   │   ├── middleware/         # JWT (auth), roles, Multer (uploads)
+│   │   ├── modules/            # Módulos: auth, users, events, papers, reviews
+│   │   └── shared/             # Helpers compartidos
 │   ├── prisma/
-│   │   └── schema.prisma           # Esquema de la base de datos
-│   └── scripts/
-│       └── seed.js                 # Script para llenar la base de datos con datos de prueba
+│   │   ├── schema.prisma       # Esquema de base de datos
+│   │   └── migrations/         # Migraciones automáticas de Prisma
+│   ├── scripts/
+│   │   └── seed.js             # Genera 100 usuarios + congresos + artículos de prueba
+│   ├── uploads/                # PDFs subidos por los autores
+│   ├── .env.example            # Plantilla de variables de entorno
+│   └── Dockerfile
 │
 ├── frontend/
 │   ├── src/
-│   │   ├── api/                    # Conexiones Axios al backend
-│   │   ├── stores/                 # Gestión de estado global (Pinia)
-│   │   ├── router/                 # Rutas y protección de pantallas por rol
-│   │   ├── views/                  # Vistas principales de la aplicación
-│   │   └── components/             # Componentes visuales reutilizables (Vuetify)
-│   └── vite.config.js              # Configuración del empaquetador Vite y PWA
+│   │   ├── api/                # Llamadas Axios al backend
+│   │   ├── stores/             # Estado global con Pinia
+│   │   ├── router/             # Rutas protegidas por rol
+│   │   ├── views/              # Páginas principales
+│   │   └── components/         # Componentes Vuetify reutilizables
+│   ├── vite.config.js          # Config de Vite + PWA
+│   └── Dockerfile
 │
-└── docker-compose.yml              # Configuración de infraestructura Docker
+├── PAPERS/                     # PDFs reales para el seed (opcionales)
+├── docker-compose.yml          # Orquestación de los 3 servicios
+└── README.md
 ```
 
-### Comandos de utilidad en Docker
+---
+
+## 7. Comandos Útiles
+
+### Con Docker
+
 ```bash
-# Ver los registros (logs) del backend en tiempo real
+# Iniciar todo (primera vez o tras cambios de código)
+docker compose up --build
+
+# Iniciar sin reconstruir (más rápido)
+docker compose up
+
+# Detener sin borrar datos
+docker compose down
+
+# Detener Y borrar la base de datos (reset completo)
+docker compose down -v
+
+# Ver logs del backend en tiempo real
 docker compose logs -f backend
 
-# Reiniciar por completo la base de datos y volver a insertar los datos de prueba
+# Reiniciar la base de datos y volver a insertar datos de prueba
 docker compose exec backend npx prisma migrate reset --force
 
-# Abrir Prisma Studio (Una interfaz web para ver y editar la base de datos directamente)
-cd backend && npx prisma studio
+# Abrir Prisma Studio (interfaz visual de la base de datos)
+docker compose exec backend npx prisma studio
+# → Luego abrir http://localhost:5555
 ```
 
-### API — Referencia rápida
-El backend expone una API RESTful. La mayoría de los endpoints (excepto login/registro) requieren un token JWT válido que se envía en el header `Authorization: Bearer <token>`.
+### Sin Docker (desde la carpeta `backend/`)
 
-- **Autenticación**: `/api/auth/register`, `/api/auth/login`, `/api/auth/switch-event`, `/api/auth/me`
-- **Eventos**: `/api/events` (CRUD completo para administradores)
-- **Usuarios**: `/api/users`, `/api/users/roles/assign`
-- **Artículos (Papers)**: `/api/papers` (Sube PDFs, gestiona versiones y estados)
-- **Revisiones**: `/api/reviews/my-assignments`, `/api/reviews/submit`, `/api/reviews/assignments`
+```bash
+# Aplicar migraciones pendientes
+npx prisma migrate deploy
+
+# Regenerar el cliente de Prisma tras cambios en el schema
+npx prisma generate
+
+# Insertar datos de prueba
+npm run seed
+
+# Ver la base de datos visualmente
+npx prisma studio
+```
+
+---
+
+## 8. API — Referencia Rápida
+
+El backend expone una API RESTful en `http://localhost:3000`.  
+Todos los endpoints (excepto login y registro) requieren el header:
+```
+Authorization: Bearer <token>
+```
+El token se obtiene al hacer login y el frontend lo gestiona automáticamente.
+
+| Módulo | Endpoints principales |
+|---|---|
+| **Autenticación** | `POST /api/auth/register`, `POST /api/auth/login`, `POST /api/auth/switch-event`, `GET /api/auth/me` |
+| **Eventos** | `GET/POST /api/events`, `GET/PUT/DELETE /api/events/:id` |
+| **Usuarios** | `GET /api/users`, `POST /api/users/roles/assign` |
+| **Artículos** | `GET/POST /api/papers`, `GET/PATCH /api/papers/:id` |
+| **Revisiones** | `GET /api/reviews/my-assignments`, `POST /api/reviews/submit`, `GET /api/reviews/assignments` |
+
+---
+
+## 9. Solución de Problemas Frecuentes
+
+### ❌ `port is already allocated` o `address already in use`
+El puerto 3000 o 5173 está ocupado por otro proceso.
+```bash
+docker compose down
+docker compose up --build
+```
+
+### ❌ `docker daemon is not running`
+Docker Desktop no está abierto. Ábrelo desde el menú de inicio y espera a que el ícono de la ballena esté estable antes de volver a ejecutar comandos.
+
+### ❌ La app carga pero el login falla / no hay datos
+El seed no se ejecutó. Fórzalo manualmente:
+```bash
+docker compose exec backend npx prisma migrate reset --force
+```
+
+### ❌ `Can't connect to MySQL` (Opción Manual)
+Verifica que MySQL esté corriendo y que la `DATABASE_URL` en tu archivo `.env` tenga las credenciales correctas de tu instalación.
+
+### ❌ `PrismaClientInitializationError: Access denied`
+El usuario o contraseña en `.env` es incorrecto. Revisa y corrige la `DATABASE_URL`.
+
+### ❌ La app se queda "cargando" y no avanza
+Borra los datos temporales y reinicia limpio:
+```bash
+docker compose down -v
+docker compose up --build
+```
