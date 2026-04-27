@@ -151,7 +151,17 @@ export const respondToAssignment = async (assignmentId, reviewerId, accept) => {
  * Valida que la asignación le pertenezca y no haya sido ya evaluada.
  */
 export const submitReview = async (data, file, reviewerId) => {
-  const { assignmentId, ...reviewData } = data;
+  // Aseguramos que el ID sea entero, pero los puntajes pueden ser decimales
+  const assignmentId = parseInt(data.assignmentId);
+  
+  const { 
+    verdict, 
+    comments, 
+    originality, 
+    methodologicalRigor, 
+    writingQuality, 
+    relevance 
+  } = data;
 
   const assignment = await prisma.assignment.findUnique({
     where: { id: assignmentId },
@@ -163,20 +173,26 @@ export const submitReview = async (data, file, reviewerId) => {
   if (assignment.status === 'CANCELLED') { const e = new Error('La asignación fue cancelada.'); e.status = 400; throw e; }
   if (assignment.status === 'EVALUATED') { const e = new Error('Ya enviaste una evaluación para esta asignación.'); e.status = 409; throw e; }
 
-  // Verificar que no tenga ya un review en BD (por si acaso)
   const existing = await prisma.review.findUnique({ where: { assignmentId } });
   if (existing) { const e = new Error('Ya existe una evaluación para esta asignación.'); e.status = 409; throw e; }
 
-  const annotatedPdfUrl = file ? `/uploads/${file.filename}` : null;
+  // Usamos la ruta del archivo procesado por Multer
+  const annotatedPdfUrl = file ? file.path : null;
 
   const [review] = await prisma.$transaction([
     prisma.review.create({
       data: {
-        paperId:    assignment.paperId,
+        paperId:      assignment.paperId,
         reviewerId,
         assignmentId,
         annotatedPdfUrl,
-        ...reviewData,
+        verdict,
+        comments,
+        // CONVERSIÓN A NÚMERO (Permite decimales como 3.5)
+        originality:         Number(originality),
+        methodologicalRigor: Number(methodologicalRigor),
+        writingQuality:      Number(writingQuality),
+        relevance:           Number(relevance),
       },
     }),
     prisma.assignment.update({
@@ -188,7 +204,7 @@ export const submitReview = async (data, file, reviewerId) => {
   await logHistory(
     assignment.paperId,
     'Dictamen emitido',
-    `Un revisor emitió su evaluación: ${reviewData.verdict}.`,
+    `Un revisor emitió su evaluación: ${verdict}.`,
     reviewerId
   );
 

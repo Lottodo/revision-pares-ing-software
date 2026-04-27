@@ -214,12 +214,13 @@ model Review {
   reviewerId          Int
   assignmentId        Int      @unique
   verdict             Verdict
-  originality         Int      // 1–5
-  methodologicalRigor Int      // 1–5
-  writingQuality      Int      // 1–5
-  relevance           Int      // 1–5
+  // CAMBIO: De Int a Float para permitir decimales (ej. 4.5)
+  originality         Float    
+  methodologicalRigor Float    
+  writingQuality      Float    
+  relevance           Float    
   comments            String   @db.Text
-  annotatedPdfUrl     String?  @db.VarChar(500)
+  annotatedPdfUrl      String?  @db.VarChar(500)
   createdAt           DateTime @default(now())
 
   paper      Paper      @relation(fields: [paperId], references: [id])
