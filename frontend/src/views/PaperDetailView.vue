@@ -16,13 +16,12 @@
         <v-card-title class="text-h6" style="white-space:normal">{{ paper.title }}</v-card-title>
         <v-card-text>
           <p class="text-body-1 text-medium-emphasis mb-4">{{ paper.abstract }}</p>
-          <v-btn color="error" variant="tonal" prepend-icon="mdi-file-pdf-box" @click="openPdf(paper.documentUrl)" :loading="loadingPdf">
+          <v-btn color="error" variant="tonal" prepend-icon="mdi-file-pdf-box" @click="handlePdf(paper.documentUrl, false)" :loading="loadingPdf">
             Ver Documento Original
           </v-btn>
         </v-card-text>
       </v-card>
 
-      <!-- Evaluaciones Recibidas (Anonimizadas para el autor) -->
       <h2 class="text-h6 font-weight-bold mb-4">Evaluaciones Recibidas</h2>
       <div v-if="reviews.length">
         <v-card v-for="(r, i) in reviews" :key="r.id" variant="outlined" rounded="xl" class="mb-4 pa-4">
@@ -43,17 +42,31 @@
           <v-divider class="mb-3" />
           <p class="text-body-2 mb-3">{{ r.comments }}</p>
 
-          <v-btn
-            v-if="r.annotatedPdfUrl"
-            color="secondary"
-            variant="tonal"
-            size="small"
-            prepend-icon="mdi-file-pdf-box"
-            @click="openPdf(r.annotatedPdfUrl)"
-            :loading="loadingPdf"
-          >
-            Descargar PDF Anotado
-          </v-btn>
+          <div v-if="r.annotatedPdfUrl" class="d-flex flex-wrap mt-2">
+            <v-btn
+              color="info"
+              variant="tonal"
+              size="small"
+              class="mr-3 mb-2"
+              prepend-icon="mdi-eye"
+              @click="handlePdf(r.annotatedPdfUrl, false)"
+              :loading="loadingPdf"
+            >
+              Ver correcciones
+            </v-btn>
+
+            <v-btn
+              color="secondary"
+              variant="tonal"
+              size="small"
+              class="mb-2"
+              prepend-icon="mdi-download"
+              @click="handlePdf(r.annotatedPdfUrl, true)"
+              :loading="loadingPdf"
+            >
+              Descargar
+            </v-btn>
+          </div>
         </v-card>
       </div>
       <v-card v-else variant="outlined" rounded="xl" class="pa-6 text-center bg-grey-lighten-4">
@@ -61,7 +74,6 @@
         <p class="text-body-1 text-medium-emphasis">Aún no hay evaluaciones publicadas para este artículo.</p>
       </v-card>
 
-      <!-- Historial de Cambios -->
       <h2 class="text-h6 font-weight-bold mb-4 mt-6">Historial del Artículo</h2>
       <v-card rounded="xl" elevation="2" class="pa-4 mb-6">
         <v-timeline v-if="history.length" density="compact" align="start" class="mb-4">
@@ -134,15 +146,50 @@ const loadData = async () => {
   }
 };
 
-const openPdf = async (url) => {
-  if (!url) return;
+// Función unificada simple y directa
+const handlePdf = async (url, forceDownload = false) => {
+  // 1. Vemos si el botón realmente responde al clic y qué URL recibe
+  console.log("👉 1. Botón clickeado. URL recibida:", url); 
+
+  if (!url) {
+    console.warn("🛑 2. ERROR: La URL llegó vacía, nula o indefinida. Abortando misión.");
+    return;
+  }
+
+  console.log("⏳ 3. Activando estado de carga...");
   loadingPdf.value = true;
+  
   try {
+    console.log("📡 4. Llamando a la API (papersApi.downloadPdf)...");
     const blobUrl = await papersApi.downloadPdf(url);
-    window.open(blobUrl, '_blank');
+    
+    console.log("✅ 5. Respuesta de la API recibida:", blobUrl);
+    
+    if (forceDownload) {
+      console.log("📥 6. MODO DESCARGA: Creando enlace fantasma...");
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = url.split('/').pop() || 'documento_revision.pdf';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      console.log("🎉 7. MODO DESCARGA: Terminado.");
+    } else {
+      console.log("👁️ 6. MODO VER: Abriendo con link invisible...");
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.target = '_blank'; // Abrir en pestaña nueva
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      console.log("🎉 7. MODO VER: Abierto con éxito.");
+    }
+    
   } catch (e) {
-    console.error('Error abriendo PDF:', e);
+    console.error('❌ 8. ERROR en el proceso:', e);
+    alert("Error al descargar: " + (e.response?.data?.error || e.message));
   } finally {
+    console.log("🛑 9. Apagando estado de carga.");
     loadingPdf.value = false;
   }
 };

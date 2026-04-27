@@ -11,7 +11,6 @@
           <strong>Revisión doble ciego.</strong> Tu identidad no será revelada al autor.
         </v-alert>
 
-        <!-- Rúbrica -->
         <p class="text-subtitle-2 font-weight-bold mb-3">Rúbrica de Evaluación (1 = Deficiente · 5 = Excelente)</p>
         <v-row class="mb-2">
           <v-col v-for="field in rubricFields" :key="field.key" cols="12" sm="6">
@@ -31,7 +30,6 @@
 
         <v-divider class="mb-5" />
 
-        <!-- Veredicto -->
         <p class="text-subtitle-2 font-weight-bold mb-3">Veredicto Final *</p>
         <v-btn-toggle v-model="form.verdict" mandatory color="primary" rounded="lg" class="mb-5 flex-wrap" style="height:auto">
           <v-btn value="ACCEPT" color="success" variant="tonal" size="small">
@@ -48,7 +46,6 @@
           </v-btn>
         </v-btn-toggle>
 
-        <!-- Comentarios -->
         <v-textarea
           v-model="form.comments"
           label="Comentarios al autor * (mínimo 20 caracteres)"
@@ -58,18 +55,16 @@
           :rules="[v => !!v || 'Requerido', v => v?.length >= 20 || 'Mínimo 20 caracteres']"
         />
 
-        <v-file-input
-          v-model="form.annotatedPdf"
-          label="Subir PDF con Anotaciones (Opcional)"
-          accept="application/pdf"
-          prepend-inner-icon="mdi-file-pdf-box"
-          prepend-icon=""
-          variant="outlined"
-          density="comfortable"
-          hint="Si marcaste el PDF con correcciones, súbelo aquí."
-          persistent-hint
+        <v-alert 
+          v-if="props.annotatedPdf" 
+          type="success" 
+          variant="tonal" 
+          density="compact" 
           class="mt-2"
-        />
+          icon="mdi-file-check"
+        >
+          Se adjuntará automáticamente el PDF con tus anotaciones y dibujos.
+        </v-alert>
 
         <v-alert v-if="error" type="error" variant="tonal" density="compact" class="mt-5">{{ error }}</v-alert>
       </v-card-text>
@@ -89,7 +84,14 @@
 import { ref, reactive, computed, watch } from 'vue';
 import { useReviewsStore } from '../stores/reviews.js';
 
-const props = defineProps({ modelValue: Boolean, assignment: Object, prefilledNotes: String });
+// 1. Agregamos el prop 'annotatedPdf'
+const props = defineProps({ 
+  modelValue: Boolean, 
+  assignment: Object, 
+  prefilledNotes: String,
+  annotatedPdf: Blob // Recibimos el Blob que generó WebViewer
+});
+
 const emit  = defineEmits(['update:modelValue', 'submitted']);
 const store = useReviewsStore();
 
@@ -102,8 +104,7 @@ const form = reactive({
   methodologicalRigor: 0,
   writingQuality: 0,
   relevance: 0,
-  comments: '',
-  annotatedPdf: null,
+  comments: ''
 });
 
 const rubricFields = [
@@ -121,7 +122,6 @@ watch(() => props.modelValue, (isOpen) => {
     form.writingQuality = 3;
     form.relevance = 3;
     form.comments = props.prefilledNotes ? props.prefilledNotes + '\n\n' : '';
-    form.annotatedPdf = null;
     error.value = '';
   }
 });
@@ -138,10 +138,12 @@ const isValid = computed(() =>
 const handleSubmit = async () => {
   if (!isValid.value || !props.assignment) return;
   loading.value = true; error.value = '';
+  
   try {
     let payload = { assignmentId: props.assignment.id, ...form };
     
-    if (form.annotatedPdf) {
+    // 2. Si tenemos el PDF anotado, SIEMPRE usamos FormData
+    if (props.annotatedPdf) {
       const fd = new FormData();
       fd.append('assignmentId', props.assignment.id);
       fd.append('verdict', form.verdict);
@@ -150,9 +152,10 @@ const handleSubmit = async () => {
       fd.append('writingQuality', form.writingQuality);
       fd.append('relevance', form.relevance);
       fd.append('comments', form.comments);
-      // Vuetify 3 v-file-input puede devolver un array o un archivo único
-      const fileObj = Array.isArray(form.annotatedPdf) ? form.annotatedPdf[0] : form.annotatedPdf;
-      if (fileObj) fd.append('annotatedPdf', fileObj);
+      
+      // Adjuntamos el Blob generado. Le damos un nombre representativo.
+      fd.append('annotatedPdf', props.annotatedPdf, `revision_anotada_${props.assignment.id}.pdf`);
+      
       payload = fd;
     }
 

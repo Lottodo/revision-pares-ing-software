@@ -251,28 +251,45 @@ export const verifyPdfAccess = async (filename, user) => {
   if (user.isGlobalAdmin) return true;
   
   const targetPath = `/uploads/${filename}`;
+  let eventId = null;
   
-  // Buscar a qué artículo pertenece este PDF (la URL en BD puede ser absoluta o relativa)
+  // 1. Buscar en Artículos (Papeles originales)
   const paper = await prisma.paper.findFirst({ 
     where: { documentUrl: { endsWith: targetPath } } 
   });
-  let eventId = paper?.eventId;
+  if (paper) eventId = paper.eventId;
   
-  if (!paper) {
+  // 2. Si no se halló, buscar en Versiones anteriores
+  if (!eventId) {
     const version = await prisma.paperVersion.findFirst({ 
       where: { url: { endsWith: targetPath } }, 
       include: { paper: true } 
     });
-    eventId = version?.paper?.eventId;
+    if (version) eventId = version.paper?.eventId;
   }
-  
+
+  // 3. NUEVO: Si aún no se halla, buscar en REVISIONES (PDFs anotados)
   if (!eventId) {
-    const e = new Error('Archivo no registrado en el sistema.'); e.status = 404; throw e;
+    const review = await prisma.review.findFirst({
+      where: { annotatedPdfUrl: { endsWith: targetPath } },
+      include: { assignment: { include: { paper: true } } }
+    });
+    // Sacamos el eventId a través de la asignación del artículo
+    if (review) eventId = review.assignment?.paper?.eventId;
   }
   
-  // Si el usuario no está en el mismo evento del artículo, denegar acceso
+  // Si después de buscar en las 3 tablas no hay eventId, el archivo no existe en DB
+  if (!eventId) {
+    const e = new Error('Archivo no registrado en el sistema.'); 
+    e.status = 404; 
+    throw e;
+  }
+  
+  // Verificar que el usuario pertenezca al evento
   if (eventId !== user.eventId) {
-    const e = new Error('No tienes acceso a los documentos de este congreso.'); e.status = 403; throw e;
+    const e = new Error('No tienes acceso a los documentos de este congreso.'); 
+    e.status = 403; 
+    throw e;
   }
   
   return true;
