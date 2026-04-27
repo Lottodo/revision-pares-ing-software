@@ -1,177 +1,464 @@
 <template>
-  <v-app id="app-container" theme="light">
-    <v-app-bar v-if="isAuthenticated" color="rgba(255, 255, 255, 0.85)" class="glass-nav" elevation="1">
-      <v-app-bar-title class="font-weight-black text-green-darken-4 text-h5 ml-4">
-        Studio<span class="text-black">Peer</span>
-      </v-app-bar-title>
+  <v-app class="bg-background">
+    <!-- Cargar interfaz corporativa solo si hay usuario Y NO está en la sala de selección inmersiva -->
+    <template v-if="auth.isAuthenticated && $route.name !== 'select-event'">
       
-      <v-spacer></v-spacer>
+      <!-- TOPBAR ELEGANTE -->
+      <v-app-bar :absolute="$vuetify.display.mdAndDown" elevation="0" color="surface" border="b" height="60" class="px-0">
+        <!-- Contenedor Wrapper de Scroll Horizontal Inyectado -->
+        <div class="d-flex align-center w-100 h-100 px-2 overflow-x-auto hide-scrollbar">
+          <!-- Botón Universal de Drawer -->
+          <v-btn
+            icon
+            class="mr-1 flex-shrink-0"
+            color="medium-emphasis"
+            @click="drawer = !drawer"
+          >
+            <v-icon size="28">mdi-menu</v-icon>
+            <v-tooltip activator="parent" location="bottom">
+              Alternar Menú
+            </v-tooltip>
+          </v-btn>
 
-      <div 
-        ref="scrollContainer"
-        class="nav-scroll-container d-flex align-center mr-4"
-        @scroll="handleScroll"
-        :style="navMaskStyle"
-      >
-        <div class="d-flex align-center gap-2 px-2">
-          <template v-if="userRoles.includes('autor')">
-            <v-btn variant="text" prepend-icon="mdi-upload" to="/subir-articulo" class="text-grey-darken-3 font-weight-medium rounded-pill me-1" active-class="bg-grey-lighten-4 text-green-darken-4">Subir Artículo</v-btn>
-            <v-btn variant="text" prepend-icon="mdi-format-list-checks" to="/estado-articulos" class="text-grey-darken-3 font-weight-medium rounded-pill me-1" active-class="bg-grey-lighten-4 text-green-darken-4">Tus Manuscritos</v-btn>
-          </template>
+          <!-- Identificador del Congreso Activo -->
+          <div v-if="auth.eventId" class="d-flex align-center ml-2 bg-background px-4 py-2 rounded-xl flex-shrink-0">
+            <v-icon color="secondary" size="20" class="mr-2">mdi-domain</v-icon>
+            <div class="d-flex flex-column" style="line-height: 1.1;">
+              <span class="text-caption font-weight-bold text-medium-emphasis text-uppercase" style="font-size: 0.65rem !important;">Congreso Activo</span>
+              <span class="font-weight-black text-high-emphasis text-truncate text-body-2" style="max-width: 140px;">
+                {{ auth.activeEvent?.event?.name || 'Selecciona un congreso' }}
+              </span>
+            </div>
+            <!-- Selector de evento -->
+            <v-btn icon size="small" variant="text" class="ml-2" color="secondary" @click="showEventSelector = true">
+              <v-icon>mdi-swap-horizontal</v-icon>
+              <v-tooltip activator="parent">Cambiar evento</v-tooltip>
+            </v-btn>
+          </div>
 
-          <template v-if="userRoles.includes('revisor')">
-            <v-btn variant="text" prepend-icon="mdi-text-box-search-outline" to="/articulos-asignados" class="text-grey-darken-3 font-weight-medium rounded-pill me-1" active-class="bg-grey-lighten-4 text-green-darken-4">Tareas Revisor</v-btn>
-          </template>
+          <v-spacer class="flex-grow-1"></v-spacer>
 
-          <template v-if="userRoles.includes('editor')">
-            <v-btn variant="text" prepend-icon="mdi-view-dashboard-outline" to="/editor" class="text-grey-darken-3 font-weight-medium rounded-pill me-1" active-class="bg-grey-lighten-4 text-green-darken-4">Panel Editor</v-btn>
-          </template>
+          <!-- Chips de roles activos (Cambiaron de lugar para agruparse a la derecha) -->
+          <div class="d-flex align-center mr-4 flex-shrink-0" v-if="auth.eventId">
+            <v-chip
+              v-for="role in auth.roles"
+              :key="role"
+              :color="roleColor(role)"
+              size="small"
+              class="mr-1 font-weight-bold"
+              variant="flat"
+            >
+              {{ roleLabel(role) }}
+            </v-chip>
+          </div>
 
-          <template v-if="userRoles.includes('administrador')">
-            <v-btn variant="text" prepend-icon="mdi-shield-crown-outline" to="/admin" class="text-grey-darken-3 font-weight-medium rounded-pill me-1" active-class="bg-grey-lighten-4 text-deep-purple-darken-2">Admin</v-btn>
-          </template>
+          <!-- Selector de Tema Visual -->
+          <v-menu transition="slide-y-transition" rounded="xl">
+            <template v-slot:activator="{ props }">
+              <v-btn icon v-bind="props" class="mr-2 flex-shrink-0" color="medium-emphasis">
+                <v-icon>mdi-palette-outline</v-icon>
+                <v-tooltip activator="parent" location="bottom">Cambiar Tema</v-tooltip>
+              </v-btn>
+            </template>
+            <v-card class="pa-2 rounded-xl elevation-3 border-card" min-width="180">
+              <div class="px-3 py-2 text-caption font-weight-bold text-medium-emphasis text-uppercase">Temas Profesionales</div>
+              <v-list density="compact" class="bg-transparent">
+                <v-list-item
+                  v-for="item in availableThemes"
+                  :key="item.value"
+                  @click="changeTheme(item.value)"
+                  rounded="lg"
+                  class="mb-1"
+                  :active="theme.global.name.value === item.value"
+                  active-color="primary"
+                >
+                  <template v-slot:prepend>
+                    <v-icon :color="item.color" class="mr-2">{{ item.icon }}</v-icon>
+                  </template>
+                  <v-list-item-title class="font-weight-medium">{{ item.title }}</v-list-item-title>
+                </v-list-item>
+              </v-list>
+            </v-card>
+          </v-menu>
 
-          <v-btn variant="flat" color="blue-grey-darken-4" class="rounded-pill font-weight-bold px-6 ml-2 shadow-sm" prepend-icon="mdi-logout" @click="handleLogout">Salir</v-btn>
+          <!-- Menú de Usuario -->
+          <v-menu transition="slide-y-transition" rounded="xl">
+            <template #activator="{ props }">
+              <v-btn v-bind="props" class="text-none font-weight-bold px-2 rounded-pill flex-shrink-0" height="48" variant="text">
+                <div class="d-flex align-center">
+                  <v-avatar color="primary" size="36" class="mr-3 text-white elevation-1">
+                    <span class="text-subtitle-1 font-weight-black">{{ auth.user?.username?.[0]?.toUpperCase() || 'U' }}</span>
+                  </v-avatar>
+                  <div class="d-flex flex-column align-start text-left d-none d-sm-flex mr-1">
+                    <span class="text-body-2 font-weight-bold text-high-emphasis" style="line-height:1;">{{ auth.user?.username }}</span>
+                    <span class="text-caption text-medium-emphasis">Cuenta Activa</span>
+                  </div>
+                  <v-icon size="20" color="medium-emphasis">mdi-chevron-down</v-icon>
+                </div>
+              </v-btn>
+            </template>
+            
+            <v-card min-width="260" class="rounded-xl border-card elevation-4 mt-2 bg-surface">
+              <v-list class="pa-2 bg-transparent">
+                <v-list-item class="rounded-lg mb-1">
+                  <template #prepend>
+                    <v-avatar color="primary" size="44" class="text-white">
+                      <span class="text-h6 font-weight-black">{{ auth.user?.username?.[0]?.toUpperCase() || 'U' }}</span>
+                    </v-avatar>
+                  </template>
+                  <v-list-item-title class="font-weight-bold">{{ auth.user?.username }}</v-list-item-title>
+                  <v-list-item-subtitle>{{ auth.user?.email }}</v-list-item-subtitle>
+                </v-list-item>
+                <v-divider class="my-2"></v-divider>
+                <v-list-item prepend-icon="mdi-logout" class="text-error rounded-lg" @click="handleLogout">
+                  <v-list-item-title class="font-weight-bold">Cerrar Sesión</v-list-item-title>
+                </v-list-item>
+              </v-list>
+            </v-card>
+          </v-menu>
         </div>
-      </div>
-    </v-app-bar>
+      </v-app-bar>
 
-    <v-main class="bg-surface">
-      <v-container :class="{ 'py-10': isAuthenticated, 'pa-4': true }" fluid class="max-width-container">
+      <!-- SIDEBAR LATERAL PROFESIONAL -->
+      <!-- Usa rail y clases nativas con transiciones fluídas en CSS base flexbox -->
+      <v-navigation-drawer
+        v-model="drawer"
+        :absolute="$vuetify.display.mdAndDown"
+        :rail="!isPinned && !$vuetify.display.mdAndDown"
+        :rail-width="76"
+        color="surface"
+        class="border-r transition-width"
+        width="280"
+        elevation="0"
+      >
+        <v-list density="compact" class="pa-2 smooth-rail">
+          <v-list-item 
+            class="mt-1 rounded-lg" 
+            @click="$router.push('/')"
+            prepend-icon="mdi-book-open-page-variant"
+            base-color="primary"
+          >
+            <v-list-item-title class="text-h6 font-weight-black text-primary">
+              StudioPeer
+            </v-list-item-title>
+            <v-list-item-subtitle class="text-overline text-medium-emphasis font-weight-bold" style="line-height:1;">
+              Review System
+            </v-list-item-subtitle>
+          </v-list-item>
+        </v-list>
+
+        <v-divider class="mx-4 my-2 opacity-50 smooth-opacity"></v-divider>
+
+        <v-list density="compact" nav class="px-2 pt-0 smooth-rail overflow-y-auto">
+          <!-- Subheader se colapsa en rail con la clase subtitle-transition -->
+          <v-list-subheader class="text-caption font-weight-bold tracking-wide pl-2 text-truncate subtitle-transition" style="min-height: 0; overflow: hidden;">
+            <span>Funcionalidades</span>
+          </v-list-subheader>
+          
+          <v-list-item
+            v-if="auth.isAuthor || auth.isAdmin"
+            :to="{ name: 'author' }"
+            prepend-icon="mdi-file-document-edit"
+            color="primary"
+            class="rounded-lg mb-1"
+            active-class="bg-primary-lighten-5 font-weight-bold"
+          >
+            <v-list-item-title class="text-body-2 font-weight-medium">Mis Artículos</v-list-item-title>
+            <!-- Tooltip nativo reacomodado -->
+            <v-tooltip activator="parent" location="right" v-if="!isPinned && !$vuetify.display.mdAndDown">Mis Artículos</v-tooltip>
+          </v-list-item>
+
+          <v-list-item
+            v-if="auth.isReviewer"
+            :to="{ name: 'reviewer' }"
+            prepend-icon="mdi-clipboard-check-multiple"
+            color="primary"
+            class="rounded-lg mb-1"
+            active-class="bg-primary-lighten-5 font-weight-bold"
+          >
+            <v-list-item-title class="text-body-2 font-weight-medium">Revisiones Pendientes</v-list-item-title>
+            <v-tooltip activator="parent" location="right" v-if="!isPinned && !$vuetify.display.mdAndDown">Revisiones Pendientes</v-tooltip>
+          </v-list-item>
+          
+          <v-list-item
+            v-if="auth.isEditor || auth.isAdmin"
+            :to="{ name: 'editor' }"
+            prepend-icon="mdi-view-dashboard-outline"
+            color="primary"
+            class="rounded-lg mb-1"
+            active-class="bg-primary-lighten-5 font-weight-bold"
+          >
+            <v-list-item-title class="text-body-2 font-weight-medium">Panel Editorial</v-list-item-title>
+            <v-tooltip activator="parent" location="right" v-if="!isPinned && !$vuetify.display.mdAndDown">Panel Editorial</v-tooltip>
+          </v-list-item>
+
+          <v-list-item
+            v-if="auth.isAdmin"
+            :to="{ name: 'admin' }"
+            prepend-icon="mdi-shield-crown"
+            color="error"
+            class="rounded-lg mb-1"
+            active-class="bg-red-lighten-5 font-weight-bold text-error"
+          >
+            <v-list-item-title class="text-body-2 font-weight-medium">Administración</v-list-item-title>
+            <v-tooltip activator="parent" location="right" v-if="!isPinned && !$vuetify.display.mdAndDown">Administración</v-tooltip>
+          </v-list-item>
+        </v-list>
+        
+        <template v-slot:append>
+          <v-list density="compact" nav class="px-2 pb-3 smooth-rail">
+             <!-- Pin Button (Desktop) recuperado por instrucción explícita -->
+             <v-list-item
+               v-if="!$vuetify.display.mdAndDown"
+               variant="text" 
+               color="primary"
+               class="rounded-lg mb-2 pin-btn-item d-none d-md-flex"
+               @click.stop="togglePin"
+             >
+               <template v-slot:prepend>
+                 <v-icon :class="{ 'pin-icon-active': isPinned }" color="medium-emphasis">
+                   {{ isPinned ? 'mdi-pin' : 'mdi-pin-outline' }}
+                 </v-icon>
+               </template>
+               <v-list-item-title class="font-weight-bold text-medium-emphasis">
+                 {{ isPinned ? 'Desanclar Panel' : 'Anclar Panel' }}
+               </v-list-item-title>
+               <v-tooltip activator="parent" location="right" v-if="!isPinned">{{ isPinned ? 'Desanclar' : 'Anclar' }}</v-tooltip>
+             </v-list-item>
+             
+             <!-- Configuración: resaltado sutil, no parecido a "activo" -->
+             <v-list-item
+               class="rounded-lg config-btn"
+               prepend-icon="mdi-cog-outline"
+             >
+               <v-list-item-title class="text-body-2 font-weight-bold">Configuración</v-list-item-title>
+               <v-tooltip activator="parent" location="right" v-if="!isPinned && !$vuetify.display.mdAndDown">Configuración</v-tooltip>
+             </v-list-item>
+          </v-list>
+        </template>
+      </v-navigation-drawer>
+    </template>
+
+    <!-- Dialog selector de evento global -->
+    <EventSelectorDialog v-model="showEventSelector" />
+
+    <!-- MAIN CONTENT (FLUID) -->
+    <v-main class="bg-background d-flex flex-column h-100 transition-main">
+      <div class="flex-grow-1 position-relative">
         <router-view v-slot="{ Component }">
           <transition name="fade" mode="out-in">
             <component :is="Component" />
           </transition>
         </router-view>
-      </v-container>
+      </div>
     </v-main>
   </v-app>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
-import { useAuth } from '@/composables/useAuth'
+import { ref, watchEffect, onMounted } from 'vue';
+import { useRouter } from 'vue-router';
+import { useAuthStore } from './stores/auth.js';
+import { useDisplay, useTheme } from 'vuetify';
 
-const router = useRouter()
-const { user, token, logout } = useAuth()
+import EventSelectorDialog from './components/EventSelectorDialog.vue';
 
-const scrollContainer = ref(null)
-const scrollPos = ref({ left: 0, max: 0 })
+const auth    = useAuthStore();
+const router  = useRouter();
+const display = useDisplay();
+const theme   = useTheme();
 
-const isAuthenticated = computed(() => !!token.value)
-// Dynamic role calculation that respects the ref user object and falls back to storage if needed
-const userRoles = computed(() => {
-  let roles = [];
-  
-  if (user.value?.roles) roles = user.value.roles;
-  else if (user.value?.rol) roles = [user.value.rol];
-  else if (user.value?.role) roles = [user.value.role];
-  else {
-    try {
-      const defaultData = JSON.parse(localStorage.getItem('user') || '{}');
-      if (defaultData.roles) roles = defaultData.roles;
-      else if (defaultData.rol) roles = [defaultData.rol];
-      else if (defaultData.role) roles = [defaultData.role];
-    } catch {
-      // do nothing
-    }
-  }
+const availableThemes = [
+  { title: 'Claro (Clásico)', value: 'light', icon: 'mdi-white-balance-sunny', color: '#F59E0B' },
+  { title: 'Oscuro (Nocturno)', value: 'dark', icon: 'mdi-weather-night', color: '#818CF8' },
+  { title: 'Profundo (Ocean)', value: 'ocean', icon: 'mdi-water', color: '#38BDF8' },
+  { title: 'Orgánico (Emerald)', value: 'emerald', icon: 'mdi-leaf', color: '#34D399' },
+];
 
-  return Array.isArray(roles) ? roles : [roles];
-})
+const changeTheme = (newTheme) => {
+  theme.global.name.value = newTheme;
+  localStorage.setItem('studiopeer-theme', newTheme);
+};
 
-const handleLogout = () => {
-  logout()
-}
+const drawer = ref(true);
+const isPinned = ref(true); 
+const showEventSelector = ref(false);
 
-// Lógica de scroll para el fade inteligente
-const handleScroll = (e) => {
-  const el = e.target
-  scrollPos.value = {
-    left: el.scrollLeft,
-    max: el.scrollWidth - el.clientWidth
-  }
-}
+const roleColor = (role) => ({ ADMIN: 'error', EDITOR: 'secondary', REVIEWER: 'warning', AUTHOR: 'primary' }[role] || 'grey');
+const roleLabel = (role) => ({ ADMIN: 'Admin', EDITOR: 'Editor', REVIEWER: 'Revisor', AUTHOR: 'Autor' }[role] || role);
 
-const navMaskStyle = computed(() => {
-  const { left, max } = scrollPos.value
-  if (max <= 0) return {}
-
-  const showLeft = left > 10
-  const showRight = left < max - 10
-
-  if (showLeft && showRight) {
-    return { maskImage: 'linear-gradient(to right, transparent, black 15%, black 85%, transparent 100%)', webkitMaskImage: 'linear-gradient(to right, transparent, black 15%, black 85%, transparent 100%)' }
-  } else if (showLeft) {
-    return { maskImage: 'linear-gradient(to right, transparent, black 15%)', webkitMaskImage: 'linear-gradient(to right, transparent, black 15%)' }
-  } else if (showRight) {
-    return { maskImage: 'linear-gradient(to right, black 85%, transparent 100%)', webkitMaskImage: 'linear-gradient(to right, black 85%, transparent 100%)' }
-  }
-  return {}
-})
-
-// Inicializar scroll al montar
 onMounted(() => {
-  if (scrollContainer.value) {
-    setTimeout(() => {
-      handleScroll({ target: scrollContainer.value })
-    }, 500)
+  const storedPin = localStorage.getItem('studiopeer-sidebar-pinned');
+  if (storedPin !== null) {
+    isPinned.value = storedPin === 'true';
   }
-})
+});
+
+const togglePin = () => {
+  isPinned.value = !isPinned.value;
+  localStorage.setItem('studiopeer-sidebar-pinned', isPinned.value);
+};
+
+watchEffect(() => {
+  if (display.mdAndDown.value) {
+    drawer.value = false;
+  } else {
+    drawer.value = true;
+  }
+});
+
+const handleLogout = async () => {
+  await auth.logout();
+  router.push({ name: 'login' });
+};
 </script>
 
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
-
-body {
-  margin: 0;
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
-  background-color: #FAFAFA; 
+/* CLASES GLOBALES DE ESTILO DEL PROYECTO */
+.border-card {
+  border: 1px solid rgba(120, 120, 120, 0.15);
+}
+.tracking-wide {
+  letter-spacing: 0.05em;
+}
+.bg-primary-lighten-5 {
+  background-color: rgba(var(--v-theme-primary), 0.1) !important;
+}
+.bg-red-lighten-5 {
+  background-color: rgba(var(--v-theme-error), 0.1) !important;
 }
 
-/* Glassmorphism nav */
-.glass-nav {
-  backdrop-filter: blur(12px) !important;
-  -webkit-backdrop-filter: blur(12px) !important;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.05) !important;
+/* Colapsar subheader en modo rail: íconos empiezan desde el divisor */
+.v-navigation-drawer--rail .subtitle-transition {
+  min-height: 0 !important;
+  height: 0 !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  margin: 0 !important;
+  overflow: hidden !important;
+  pointer-events: none !important;
+  transition: height 0.4s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.3s ease, min-height 0.4s !important;
 }
 
-.max-width-container {
-  max-width: 1400px;
-  margin: 0 auto;
+/* =========================================================
+   ANIMACIONES SUAVES DEL SIDEBAR NATIVAS - AISLAMIENTO DE FLUJO
+   ========================================================= */
+
+/* Contenedores principales (v-main y sidebar) - Animación del contenedor */
+.v-navigation-drawer,
+.v-navigation-drawer__content,
+.v-main {
+  transition: width 0.4s cubic-bezier(0.2, 0.8, 0.2, 1), padding-left 0.4s cubic-bezier(0.2, 0.8, 0.2, 1), transform 0.4s ease !important;
 }
 
-.bg-surface {
-  background-color: #FAFAFA;
+/* Forzamos que cada botón sea relativo y de ancho dinámico fluido */
+.smooth-rail .v-list-item {
+  position: relative !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  overflow: hidden !important;
+  padding-left: 16px !important;
+  padding-right: 16px !important;
+  width: 100% !important;
+  max-width: 300px !important;
+  margin-bottom: 2px !important;
+  transition:
+    max-width 0.4s cubic-bezier(0.2, 0.8, 0.2, 1),
+    padding-left 0.4s cubic-bezier(0.2, 0.8, 0.2, 1),
+    padding-right 0.4s cubic-bezier(0.2, 0.8, 0.2, 1),
+    margin-bottom 0.4s cubic-bezier(0.2, 0.8, 0.2, 1),
+    margin-left 0.4s cubic-bezier(0.2, 0.8, 0.2, 1),
+    margin-right 0.4s cubic-bezier(0.2, 0.8, 0.2, 1),
+    min-height 0.4s cubic-bezier(0.2, 0.8, 0.2, 1) !important;
 }
 
-/* Nav scrolling for mobile */
-.nav-scroll-container {
-  max-width: calc(100vw - 180px); /* Deja espacio para el título */
-  overflow-x: auto;
-  scrollbar-width: none; /* Firefox */
-  -ms-overflow-style: none; /* IE/Edge */
-  transition: mask-image 0.3s ease;
+/* EL SECRETO: Hacemos que los contenedores de íconos no reaccionen a márgenes externos */
+.smooth-rail .v-list-item__prepend {
+  flex-shrink: 0 !important;
+  width: 24px !important;
+  height: 24px !important;
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+  margin: 0 !important; 
+  padding: 0 !important;
 }
 
-.nav-scroll-container::-webkit-scrollbar {
-  display: none; /* Chrome/Safari */
+
+
+/* AISLAMIENTO CSS: Extraemos los textos del flujo Flex para que no "tiren" de la caja al desaparecer */
+.smooth-rail .v-list-item__content,
+.smooth-rail .v-list-item__spacer,
+.smooth-rail .v-list-item__append {
+  position: absolute !important;
+  left: 56px !important; /* Distancia segura desde el borde izquierdo esquivando el icono */
+  width: max-content !important;
+  opacity: 1 !important;
+  transition: opacity 0.3s cubic-bezier(0.2, 0.8, 0.2, 1), transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1) !important;
+  transform: translateX(0);
 }
 
-.nav-scroll-container > div {
-  white-space: nowrap;
-  flex-wrap: nowrap;
+
+
+/* Títulos sueltos como "Funcionalidades" */
+.subtitle-transition {
+  transition: opacity 0.3s ease !important;
 }
 
-/* Page transitions */
+/* =========================================================
+   ESTADO DESANCLADO (RAIL MODE) - ENCOGIMIENTO Y CENTRADO COMPENSADO
+   ========================================================= */
+
+.v-navigation-drawer--rail .smooth-rail .v-list-item {
+  max-width: 52px !important;
+  min-height: 44px !important;
+  padding-left: 14px !important;
+  padding-right: 14px !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
+  margin-bottom: 2px !important; /* comprimido: los iconos suben juntos */
+}
+
+
+
+/* Desvanecer suavemente el contenido ahora que ya no empuja la caja */
+.v-navigation-drawer--rail .smooth-rail .v-list-item__content,
+.v-navigation-drawer--rail .smooth-rail .v-list-item__spacer,
+.v-navigation-drawer--rail .smooth-rail .v-list-item__append,
+.v-navigation-drawer--rail .subtitle-transition {
+  opacity: 0 !important;
+  transform: translateX(-8px); /* Ligero desliz de desvanecimiento hacia atrás */
+  pointer-events: none !important;
+}
+
+/* Extras: Animación del PIN Icon */
+.pin-icon-active {
+  transform: rotate(45deg);
+  transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), color 0.4s;
+}
+
+/* Configuración: borde sutil izquierdo sin parecer seleccionado */
+.config-btn {
+  border-left: 3px solid rgba(var(--v-theme-primary), 0.25) !important;
+  background: transparent !important;
+  transition: border-color 0.2s ease, background 0.2s ease !important;
+}
+.config-btn:hover {
+  border-left-color: rgba(var(--v-theme-primary), 0.6) !important;
+  background: rgba(var(--v-theme-primary), 0.05) !important;
+}
+
+/* Router Views Transition */
+.transition-main {
+  transition: padding-left 0.4s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
 .fade-enter-active,
 .fade-leave-active {
-  transition: opacity 0.25s ease, transform 0.25s ease;
+  transition: opacity 0.3s ease;
 }
 .fade-enter-from,
 .fade-leave-to {
   opacity: 0;
-  transform: translateY(10px);
 }
 </style>
