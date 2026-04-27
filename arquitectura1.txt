@@ -1,0 +1,42 @@
+## Arquitectura
+
+```
+project/
+├── backend/
+│   ├── src/
+│   │   ├── app.js                  # Express: middlewares + rutas
+│   │   ├── server.js               # Punto de entrada HTTP
+│   │   ├── config/
+│   │   │   ├── prisma.js           # Singleton cliente Prisma
+│   │   │   └── env.js              # Validación de variables de entorno
+│   │   ├── middleware/
+│   │   │   ├── auth.js             # verifyToken (JWT)
+│   │   │   ├── roles.js            # requireRole(), requireEventContext()
+│   │   │   ├── validate.js         # Wrapper Zod genérico
+│   │   │   ├── upload.js           # Multer — PDFs hasta 10MB
+│   │   │   └── errorHandler.js     # Catch global de Express
+│   │   ├── modules/
+│   │   │   ├── auth/               # Login, register, switch-event, /me
+│   │   │   ├── users/              # CRUD usuarios, roles por evento
+│   │   │   ├── events/             # CRUD congresos, stats
+│   │   │   ├── papers/             # Artículos con doble ciego
+│   │   │   └── reviews/            # Asignaciones + evaluaciones
+│   │   └── shared/
+│   │       ├── response.js         # Helpers HTTP (ok, fail, created…)
+│   │       └── history.js          # logHistory()
+│   ├── prisma/
+│   │   └── schema.prisma           # Esquema relacional completo
+│   └── scripts/
+│       └── seed.js                 # Seed con 3 eventos, 11 usuarios, reviews
+│
+├── frontend/
+│   ├── src/
+│   │   ├── api/                    # Módulos Axios por recurso
+│   │   ├── stores/                 # Pinia: auth, papers, reviews
+│   │   ├── router/                 # Guards por rol y contexto de evento
+│   │   ├── views/                  # Login, EventSelector, Author, Reviewer, Editor, Admin
+│   │   └── components/             # Diálogos, cards, drawers reutilizables
+│   └── vite.config.js              # PWA + proxy de desarrollo
+│
+└── docker-compose.yml
+```

@@ -1,44 +1,69 @@
 services:
+  # ─── MySQL 8 ───────────────────────────────────────────────────
+  mysql:
+    image: mysql:8.0
+    container_name: congress_mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpass
+      MYSQL_DATABASE: peerreview
+      MYSQL_USER: appuser
+      MYSQL_PASSWORD: apppass
+    ports:
+      - "3308:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - app-net
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-prootpass"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  # ─── Backend Node.js + Express + Prisma ────────────────────────
   backend:
-    build: .
-    container_name: peer_review_backend
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: congress_backend
+    restart: unless-stopped
     ports:
       - "3000:3000"
-    volumes:
-      - .:/usr/src/app
-      - /usr/src/app/node_modules
-    command: npm run start:backend
     environment:
-      - PORT=3000
-      - MONGO_URI=mongodb://mongo:27017/RevisionPares
-      - JWT_SECRET=mi_clave_super_secreta_sprint1
-    depends_on:
-      - mongo
-    networks:
-      - app-net
-
-  mongo:
-    image: mongo:7
-    container_name: peer_review_mongo
-    ports:
-      - "27017:27017"
+      DATABASE_URL: mysql://root:rootpass@mysql:3306/peerreview
+      JWT_SECRET: congress_jwt_secret_change_in_production_32chars
+      PORT: 3000
+      NODE_ENV: development
+      UPLOADS_DIR: /app/uploads
+      FRONTEND_URL: http://localhost:5173
     volumes:
-      - mongo_data:/data/db
+      - ./backend:/app
+      - /app/node_modules
+      - uploads_data:/app/uploads
+    depends_on:
+      mysql:
+        condition: service_healthy
     networks:
       - app-net
-
+    command: >
+      sh -c "npx prisma migrate deploy && npx prisma generate && node src/server.js"
+  
+  # ─── Frontend Vue 3 + Vite PWA ─────────────────────────────────
   frontend:
-    build: .
-    container_name: peer_review_frontend
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: congress_frontend
+    restart: unless-stopped
     ports:
       - "5173:5173"
-    volumes:
-      - .:/usr/src/app
-      - /usr/src/app/node_modules
-    command: npm run dev -- --host 0.0.0.0
     environment:
-      - VITE_PORT=5173
-      - BACKEND_URL=http://backend:3000
+      VITE_API_URL: http://localhost:3000/api
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
     depends_on:
       - backend
     networks:
@@ -49,4 +74,5 @@ networks:
     driver: bridge
 
 volumes:
-  mongo_data:
+  mysql_data:
+  uploads_data:
