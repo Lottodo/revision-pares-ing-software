@@ -11,6 +11,7 @@ export const listAll   = handle(() => svc.listAll());
 export const getById   = handle((req) => svc.getById(parseInt(req.params.id)));
 export const getBySlug = handle((req) => svc.getBySlug(req.params.slug));
 export const getStats  = handle((req) => svc.getStats(parseInt(req.params.id)));
+export const getEditorMetrics = handle((req) => svc.getEditorMetrics(parseInt(req.params.id)));
 export const update    = handle((req) => svc.update(parseInt(req.params.id), req.body));
 export const remove    = handle((req) => svc.remove(parseInt(req.params.id)));
 

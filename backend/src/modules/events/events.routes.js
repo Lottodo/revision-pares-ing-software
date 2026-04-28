@@ -14,6 +14,7 @@ router.get('/',              ctrl.listAll);
 router.get('/slug/:slug',    ctrl.getBySlug);
 router.get('/:id',           validate(eventIdParamSchema, 'params'), ctrl.getById);
 router.get('/:id/stats',     validate(eventIdParamSchema, 'params'), requireRole('ADMIN', 'EDITOR'), ctrl.getStats);
+router.get('/:id/editor-metrics', validate(eventIdParamSchema, 'params'), requireRole('EDITOR', 'ADMIN'), ctrl.getEditorMetrics);
 
 // Solo ADMIN puede crear/editar/borrar eventos
 router.post('/',             requireRole('ADMIN'), validate(createEventSchema), ctrl.create);

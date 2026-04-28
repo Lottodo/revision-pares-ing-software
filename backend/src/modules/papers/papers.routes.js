@@ -48,11 +48,25 @@ router.patch('/:id/status',
   ctrl.updateStatus
 );
 
+// Resumen para decisión editorial (US-2242) — solo EDITOR o ADMIN
+router.get('/:id/decision-summary',
+  validate(paperIdParamSchema, 'params'),
+  requireRole('EDITOR', 'ADMIN'),
+  ctrl.getDecisionSummary
+);
+
 // Historial — AUTHOR (solo el suyo) o EDITOR/ADMIN
 router.get('/:id/history',
   validate(paperIdParamSchema, 'params'),
   requireRole('AUTHOR', 'EDITOR', 'ADMIN'),
   ctrl.getHistory
+);
+
+// Agregar nota al historial (US-2241) — solo EDITOR o ADMIN
+router.post('/:id/history',
+  validate(paperIdParamSchema, 'params'),
+  requireRole('EDITOR', 'ADMIN'),
+  ctrl.addHistoryNote
 );
 
 export default router;

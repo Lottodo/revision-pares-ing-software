@@ -49,7 +49,15 @@ export const addVersion = async (req, res) => {
 };
 
 export const updateStatus = handle((req) =>
-  svc.updateStatus(parseInt(req.params.id), req.user.eventId, req.body.status, req.user.id)
+  svc.updateStatus(parseInt(req.params.id), req.user.eventId, req.body.status, req.user.id, req.body.editorComment || '')
+);
+
+export const getDecisionSummary = handle((req) =>
+  svc.getDecisionSummary(parseInt(req.params.id), req.user.eventId)
+);
+
+export const addHistoryNote = handle((req) =>
+  svc.addHistoryNote(parseInt(req.params.id), req.user.eventId, req.body.note, req.user.id)
 );
 
 export const getHistory = handle((req) =>

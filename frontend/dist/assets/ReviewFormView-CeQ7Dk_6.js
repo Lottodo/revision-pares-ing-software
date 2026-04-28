@@ -1,0 +1,1 @@
+import{_ as r}from"./_plugin-vue_export-helper-DlAUqK2U.js";import{c as o,a as n,o as t}from"./index-CeDQCJQm.js";const s={};function a(c,e){return t(),o("div",null,[...e[0]||(e[0]=[n("h1",null,"Formulario de revisión",-1)])])}const m=r(s,[["render",a]]);export{m as default};

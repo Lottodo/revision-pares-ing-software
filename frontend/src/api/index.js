@@ -6,6 +6,7 @@ export const eventsApi = {
   getById:   (id)      => api.get(`/events/${id}`),
   getBySlug: (slug)    => api.get(`/events/slug/${slug}`),
   getStats:  (id)      => api.get(`/events/${id}/stats`),
+  getEditorMetrics: (id) => api.get(`/events/${id}/editor-metrics`),
   create:    (payload) => api.post('/events', payload),
   update:    (id, payload) => api.patch(`/events/${id}`, payload),
   joinEvent: (accessCode) => api.post('/events/join', { accessCode }),
@@ -27,6 +28,7 @@ export const papersApi = {
   updateStatus: (id, status, editorComment) => api.patch(`/papers/${id}/status`, { status, editorComment }),
   getHistory: (id) => api.get(`/papers/${id}/history`),
   addHistoryNote: (id, note) => api.post(`/papers/${id}/history`, { note }),
+  getDecisionSummary: (id) => api.get(`/papers/${id}/decision-summary`),
   downloadPdf: async (url) => {
     // Extraer todo lo que está después de '/uploads/' para soportar subcarpetas
     const path = url.split('/uploads/')[1] || url.split('/').pop();
@@ -50,6 +52,7 @@ export const reviewsApi = {
   cancelAssignment: (paperId, reviewerId) =>
     api.delete('/reviews/assignments', { data: { paperId, reviewerId } }),
   listAssignments:  (paperId)          => api.get(`/reviews/assignments/${paperId}`),
+  getDelayedAssignments: ()            => api.get('/reviews/delayed'),
 
   // Compartido (editor ve todo, autor ve sin revisor)
   listByPaper: (paperId) => api.get(`/reviews/paper/${paperId}`),

@@ -192,3 +192,42 @@ export const listReviewsByPaper = async (paperId, eventId, user) => {
 
   return reviews;
 };
+
+// ─── RETRASOS (US-2246) ───────────────────────────────────────
+
+/**
+ * Lista asignaciones con deadline vencido o próximo a vencer (≤3 días).
+ * Solo EDITOR/ADMIN.
+ */
+export const getDelayedAssignments = async (eventId) => {
+  const now = new Date();
+  const warningDate = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000); // +3 días
+
+  const assignments = await prisma.assignment.findMany({
+    where: {
+      paper: { eventId },
+      status: { in: ['PENDING', 'IN_PROGRESS'] },
+      deadline: { not: null, lte: warningDate },
+    },
+    include: {
+      paper: { select: { id: true, title: true, status: true } },
+      reviewer: { select: { id: true, username: true, email: true } },
+    },
+    orderBy: { deadline: 'asc' },
+  });
+
+  return assignments.map(a => {
+    const deadline = new Date(a.deadline);
+    const diffMs = deadline - now;
+    const daysRemaining = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+    const isOverdue = diffMs < 0;
+    const daysOverdue = isOverdue ? Math.abs(daysRemaining) : 0;
+
+    return {
+      ...a,
+      daysRemaining: isOverdue ? -daysOverdue : daysRemaining,
+      daysOverdue,
+      severity: isOverdue ? 'critical' : daysRemaining <= 1 ? 'critical' : 'warning',
+    };
+  });
+};

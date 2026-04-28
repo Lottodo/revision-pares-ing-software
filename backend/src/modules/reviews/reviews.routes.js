@@ -57,4 +57,10 @@ router.get('/paper/:paperId',
   ctrl.listReviewsByPaper
 );
 
+// ── Retrasos en revisiones (US-2246) — solo EDITOR/ADMIN ──
+router.get('/delayed',
+  requireRole('EDITOR', 'ADMIN'),
+  ctrl.getDelayedAssignments
+);
+
 export default router;

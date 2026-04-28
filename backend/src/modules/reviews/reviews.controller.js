@@ -38,3 +38,7 @@ export const submitReview = async (req, res) => {
 export const listReviewsByPaper = handle((req) =>
   svc.listReviewsByPaper(parseInt(req.params.paperId), req.user.eventId, req.user)
 );
+
+export const getDelayedAssignments = handle((req) =>
+  svc.getDelayedAssignments(req.user.eventId)
+);

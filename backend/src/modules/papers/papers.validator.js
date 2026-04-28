@@ -11,6 +11,7 @@ export const updateStatusSchema = z.object({
     ['RECEIVED', 'UNDER_REVIEW', 'MINOR_CHANGES', 'MAJOR_CHANGES', 'ACCEPTED', 'REJECTED'],
     { errorMap: () => ({ message: 'Estado inválido' }) }
   ),
+  editorComment: z.string().max(1000).optional(),
 });
 
 export const paperIdParamSchema = z.object({
