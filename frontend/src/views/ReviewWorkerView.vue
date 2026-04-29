@@ -76,9 +76,9 @@
 import { ref, onMounted, onUnmounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useReviewsStore } from '../stores/reviews.js';
-import { papersApi } from '../api/index.js';
+import { papersApi, reviewsApi } from '../api/index.js'; // 1. Agregamos reviewsApi
 import ReviewFormDialog from '../components/ReviewFormDialog.vue';
-import WebViewer from '@pdftron/webviewer'; // Importamos la librería
+import WebViewer from '@pdftron/webviewer';
 
 const route = useRoute();
 const router = useRouter();
@@ -88,10 +88,9 @@ const assignmentId = parseInt(route.params.id);
 const assignment = ref(null);
 const pdfBlobUrl = ref('');
 
-// --- NUEVAS VARIABLES PARA WEBVIEWER ---
 const viewerRef = ref(null);
 const wvInstance = ref(null);
-const annotatedPdf = ref(null); // Aquí guardaremos el PDF dibujado
+const annotatedPdf = ref(null); 
 const isExtractingPdf = ref(false);
 
 const notes = ref('');
@@ -114,31 +113,33 @@ const saveNotesLocally = () => {
   lastSaved.value = new Date().toLocaleTimeString();
 };
 
-// --- FUNCIÓN MODIFICADA PARA EXTRAER EL PDF ---
+// --- FUNCIÓN PARA EXTRAER EL PDF ACTUAL (CON DIBUJOS) ---
+const preparePdfForReview = async () => {
+  if (!wvInstance.value) return null;
+  
+  const { documentViewer, annotationManager } = wvInstance.value.Core;
+  const doc = documentViewer.getDocument();
+  
+  if (doc) {
+    const xfdfString = await annotationManager.exportAnnotations();
+    const data = await doc.getFileData({ xfdfString });
+    const arr = new Uint8Array(data);
+    return new Blob([arr], { type: 'application/pdf' });
+  }
+  return null;
+};
+
 const openRubric = async () => {
   isExtractingPdf.value = true;
-  
   try {
-    if (wvInstance.value) {
-      const { documentViewer, annotationManager } = wvInstance.value.Core;
-      const doc = documentViewer.getDocument();
-      
-      if (doc) {
-        // 1. Extraemos las anotaciones y las fusionamos con el PDF
-        const xfdfString = await annotationManager.exportAnnotations();
-        const data = await doc.getFileData({ xfdfString });
-        
-        // 2. Convertimos el resultado a un Blob para enviarlo al backend
-        const arr = new Uint8Array(data);
-        annotatedPdf.value = new Blob([arr], { type: 'application/pdf' });
-        console.log("PDF con anotaciones extraído correctamente");
-      }
-    }
+    // 2. Extraemos el PDF justo antes de abrir el modal
+    annotatedPdf.value = await preparePdfForReview();
+    console.log("PDF con anotaciones preparado");
   } catch (error) {
-    console.error("Error al extraer el PDF anotado:", error);
+    console.error("Error al extraer el PDF:", error);
   } finally {
     isExtractingPdf.value = false;
-    showRubric.value = true; // Abrimos el modal aunque falle el PDF
+    showRubric.value = true;
   }
 };
 
@@ -161,30 +162,38 @@ onMounted(async () => {
     return;
   }
 
-  if (assignment.value.paper?.documentUrl) {
-    try {
-      pdfBlobUrl.value = await papersApi.downloadPdf(assignment.value.paper.documentUrl);
+  // 3. Lógica de carga inteligente
+  try {
+    let urlToDownload = assignment.value.paper?.documentUrl;
+
+    // Consultamos si ya existe una revisión (borrador) guardada
+    const { data: reviewRes } = await reviewsApi.getReviewByAssignment(assignmentId);
+    const draft = reviewRes.data;
+
+    // Si el borrador ya tiene un PDF con rayones, usamos ese
+    if (draft && draft.annotatedPdfUrl) {
+      urlToDownload = draft.annotatedPdfUrl;
+      console.log("Cargando borrador previo con anotaciones...");
+    }
+
+    if (urlToDownload) {
+      pdfBlobUrl.value = await papersApi.downloadPdf(urlToDownload);
       
-      // --- INICIALIZAMOS WEBVIEWER ---
       WebViewer(
         {
           path: '/webviewer', 
-          initialDoc: pdfBlobUrl.value, // Le pasamos el BlobURL 
+          initialDoc: pdfBlobUrl.value, 
         },
         viewerRef.value
       ).then((instance) => {
         wvInstance.value = instance;
-        
-        instance.UI.setLanguage('es'); // Interfaz en español
-        instance.UI.setToolbarGroup('Annotate'); // Mostrar herramientas de dibujo por defecto
-        
-        // Cambiar al modo oscuro 
+        instance.UI.setLanguage('es');
+        instance.UI.setToolbarGroup('Annotate');
         instance.UI.setTheme('dark'); 
       });
-
-    } catch (e) {
-      console.error('Error al cargar PDF:', e);
     }
+  } catch (e) {
+    console.error('Error al inicializar el visor:', e);
   }
 
   loadLocalNotes();

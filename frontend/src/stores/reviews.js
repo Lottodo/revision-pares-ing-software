@@ -4,11 +4,11 @@ import { ref } from 'vue';
 import { reviewsApi } from '../api/index.js';
 
 export const useReviewsStore = defineStore('reviews', () => {
-  const assignments    = ref([]); // mis asignaciones (revisor)
-  const paperReviews   = ref([]); // evaluaciones de un paper (editor/autor)
-  const paperAssignments = ref([]); // asignaciones de un paper (editor)
-  const loading        = ref(false);
-  const error          = ref(null);
+  const assignments     = ref([]); 
+  const paperReviews    = ref([]); 
+  const paperAssignments = ref([]); 
+  const loading         = ref(false);
+  const error           = ref(null);
 
   const clearError = () => { error.value = null; };
 
@@ -28,19 +28,45 @@ export const useReviewsStore = defineStore('reviews', () => {
     loading.value = true; error.value = null;
     try {
       await reviewsApi.respondToAssignment(assignmentId, accept);
+      // Actualizar estado local si aceptó
+      const idx = assignments.value.findIndex(a => a.id === assignmentId);
+      if (idx !== -1) assignments.value[idx].status = accept ? 'IN_PROGRESS' : 'REJECTED';
     } catch (e) {
       error.value = e.response?.data?.error || 'Error al responder asignación';
       throw e;
     } finally { loading.value = false; }
   };
 
+  /**
+   * NUEVO: Guardar borrador
+   * No cambia el estado de la asignación, solo persiste los datos.
+   */
+  const saveDraft = async (formData) => {
+    error.value = null;
+    try {
+      const { data } = await reviewsApi.saveDraft(formData);
+      return data.data;
+    } catch (e) {
+      error.value = e.response?.data?.error || 'Error al guardar borrador';
+      throw e;
+    }
+  };
+
   const submitReview = async (reviewData) => {
     loading.value = true; error.value = null;
     try {
+      // Usamos reviewsApi.submit (asegúrate que en tu api/index.js se llame así o submitReview)
       const { data } = await reviewsApi.submit(reviewData);
+      
       // Marcar la asignación como evaluada en el store
-      const idx = assignments.value.findIndex((a) => a.id === reviewData.assignmentId);
+      // Si mandaste FormData, el ID viene dentro, hay que extraerlo
+      const assignmentId = reviewData instanceof FormData 
+        ? parseInt(reviewData.get('assignmentId')) 
+        : reviewData.assignmentId;
+
+      const idx = assignments.value.findIndex((a) => a.id === assignmentId);
       if (idx !== -1) assignments.value[idx].status = 'EVALUATED';
+      
       return data.data;
     } catch (e) {
       error.value = e.response?.data?.error || 'Error al enviar evaluación';
@@ -94,7 +120,7 @@ export const useReviewsStore = defineStore('reviews', () => {
 
   return {
     assignments, paperReviews, paperAssignments, loading, error, clearError,
-    fetchMyAssignments, submitReview, respondToAssignment,
+    fetchMyAssignments, submitReview, saveDraft, respondToAssignment,
     fetchAssignmentsByPaper, createAssignment, cancelAssignment,
     fetchReviewsByPaper,
   };

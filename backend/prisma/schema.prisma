@@ -213,14 +213,15 @@ model Review {
   paperId             Int
   reviewerId          Int
   assignmentId        Int      @unique
-  verdict             Verdict
+  verdict             Verdict?
   // CAMBIO: De Int a Float para permitir decimales (ej. 4.5)
   originality         Float    
   methodologicalRigor Float    
   writingQuality      Float    
   relevance           Float    
-  comments            String   @db.Text
-  annotatedPdfUrl      String?  @db.VarChar(500)
+  comments            String?  @db.Text
+  annotatedPdfUrl     String?  @db.VarChar(500)
+  isDraft             Boolean  @default(false) // <--- NUEVO CAMPO
   createdAt           DateTime @default(now())
 
   paper      Paper      @relation(fields: [paperId], references: [id])

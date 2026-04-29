@@ -40,6 +40,28 @@ const generateUsers = async () => {
     isGlobalAdmin: false,
   });
 
+  // --- NUEVOS USUARIOS DE PRUEBA ---
+  users.push({
+    username: 'revisor_pro',
+    email: 'revisor@prueba.com',
+    passwordHash: hashedPassword,
+    isGlobalAdmin: false,
+  });
+
+  users.push({
+    username: 'autor_pro',
+    email: 'autor@prueba.com',
+    passwordHash: hashedPassword,
+    isGlobalAdmin: false,
+  });
+
+  users.push({
+    username: 'editor_pro',
+    email: 'editor@prueba.com',
+    passwordHash: hashedPassword,
+    isGlobalAdmin: false,
+  });
+
   // Generar 98 usuarios más
   const names = ['Ana', 'Carlos', 'Elena', 'Fernando', 'Sofia', 'Miguel', 'Lucia', 'Jorge', 'Maria', 'Pedro', 'Laura', 'David', 'Carmen', 'Raul', 'Isabel', 'Hugo', 'Marta', 'Alejandro', 'Paula', 'Diego'];
   const surnames = ['Garcia', 'Rodriguez', 'Martinez', 'Lopez', 'Gonzalez', 'Perez', 'Sanchez', 'Gomez', 'Martin', 'Jimenez', 'Ruiz', 'Hernandez', 'Diaz', 'Moreno', 'Alvarez', 'Romero', 'Alonso', 'Gutierrez', 'Navarro', 'Torres'];
@@ -120,6 +142,11 @@ async function seed() {
   const allRoles = [];
   const eventUserMap = {}; // eventId -> { EDITOR: [], REVIEWER: [], AUTHOR: [] }
 
+  // Buscamos a nuestros usuarios pro
+  const revisorPro = dbUsers.find(u => u.username === 'revisor_pro');
+  const autorPro = dbUsers.find(u => u.username === 'autor_pro');
+  const editorPro = dbUsers.find(u => u.username === 'editor_pro');
+
   for (let idx = 0; idx < areas.length; idx++) {
     const area = areas[idx];
     const evId = area.event.id;
@@ -132,6 +159,13 @@ async function seed() {
     const editors = shuffled.slice(0, 5);
     const reviewers = shuffled.slice(5, 20);
     const authors = shuffled.slice(20, 60);
+
+    // FORZAR USUARIOS PRO EN EL PRIMER EVENTO
+    if (idx === 0) {
+      reviewers.push(revisorPro);
+      authors.push(autorPro);
+      editors.push(editorPro);
+    }
 
     // Asegurarse de que multi_user tenga un rol diferente en distintos eventos
     // Evento 0: AUTHOR, Evento 1: REVIEWER, Evento 2: EDITOR
@@ -242,6 +276,9 @@ async function seed() {
   console.log("\n👤 CUENTAS CLAVE PARA PRUEBAS:");
   console.log("👉 Admin Global:  admin@qa.com / 1234");
   console.log("👉 Multiusuario:  multi@qa.com / 1234  (Tiene distintos roles en distintas áreas)");
+  console.log("👉 Revisor Fijo:  revisor@prueba.com / 1234 ");
+  console.log("👉 Autor Fijo:    autor@prueba.com / 1234 ");
+  console.log("👉 Editor Fijo:   editor@prueba.com / 1234 ");
   console.log("\n(Los otros 98 usuarios tienen contraseñas '1234' y nombres del tipo 'ana.garcia1@test.com')\n");
 }
 

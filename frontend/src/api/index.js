@@ -27,13 +27,6 @@ export const papersApi = {
   updateStatus: (id, status, editorComment) => api.patch(`/papers/${id}/status`, { status, editorComment }),
   getHistory: (id) => api.get(`/papers/${id}/history`),
   addHistoryNote: (id, note) => api.post(`/papers/${id}/history`, { note }),
-  /*downloadPdf: async (url) => {
-    // Extraer todo lo que está después de '/uploads/' para soportar subcarpetas
-    const path = url.split('/uploads/')[1] || url.split('/').pop();
-    const response = await api.get('/papers/download', { params: { path }, responseType: 'blob' });
-    return window.URL.createObjectURL(response.data);
-  }*/
-
   /**
    * Descarga un PDF (Original o Revisión Anotada)
    * @param {string} url - La ruta guardada en la DB (ej: /uploads/archivo.pdf)
@@ -62,21 +55,33 @@ export const papersApi = {
 
 // src/api/reviews.js
 export const reviewsApi = {
-  // Revisor
+  // ── Revisor ──────────────────────────────────────────────────
   myAssignments: () => api.get('/reviews/my-assignments'),
+  
+  // NUEVO: Obtener el borrador existente de una asignación
+  getReviewByAssignment: (assignmentId) => api.get(`/reviews/assignment/${assignmentId}`),
+
+  // NUEVO: Guardar borrador (soporta JSON o FormData para el PDF)
+  saveDraft: (data) =>
+    data instanceof FormData
+      ? api.post('/reviews/draft', data, { headers: { 'Content-Type': 'multipart/form-data' } })
+      : api.post('/reviews/draft', data),
+
+  // Envío final (se mantiene como 'submit' para que el Store no rompa)
   submit: (data) =>
     data instanceof FormData
       ? api.post('/reviews/submit', data, { headers: { 'Content-Type': 'multipart/form-data' } })
       : api.post('/reviews/submit', data),
+
   respondToAssignment: (id, accept) => api.put(`/reviews/assignments/${id}/respond`, { accept }),
 
-  // Editor / Admin
+  // ── Editor / Admin ───────────────────────────────────────────
   createAssignment: (data) => api.post('/reviews/assignments', data),
   cancelAssignment: (paperId, reviewerId) =>
     api.delete('/reviews/assignments', { data: { paperId, reviewerId } }),
   listAssignments: (paperId) => api.get(`/reviews/assignments/${paperId}`),
 
-  // Compartido (editor ve todo, autor ve sin revisor)
+  // ── Compartido ───────────────────────────────────────────────
   listByPaper: (paperId) => api.get(`/reviews/paper/${paperId}`),
 };
 
