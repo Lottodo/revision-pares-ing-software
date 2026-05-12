@@ -9,6 +9,7 @@ export const registerSchema = z.object({
     .regex(/^[a-zA-Z0-9_]+$/, 'Solo letras, números y guiones bajos'),
   email: z.string().email('Email inválido'),
   password: z.string().min(6, 'Mínimo 6 caracteres'),
+  accessCode: z.string().optional(), // Código de acceso opcional
 });
 
 export const loginSchema = z.object({

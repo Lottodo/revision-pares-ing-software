@@ -23,7 +23,7 @@ if (!fs.existsSync(uploadsDir)) {
 const generateUsers = async () => {
   const users = [];
   const hashedPassword = await bcrypt.hash('1234', 10);
-  
+
   // Agregar admin global (Obligatorio)
   users.push({
     username: 'admin_root',
@@ -111,7 +111,7 @@ async function seed() {
       const areaEvent = await prisma.event.create({
         data: { slug: folder.toLowerCase(), name: `Congreso de ${folder}`, active: true }
       });
-      
+
       const sourceFolder = path.join(papersDir, folder);
       const destFolder = path.join(uploadsDir, folder);
       if (!fs.existsSync(destFolder)) fs.mkdirSync(destFolder, { recursive: true });
@@ -132,7 +132,7 @@ async function seed() {
     console.log("⚠️ No se encontraron carpetas en PAPERS. Creando eventos por defecto...");
     const defaultAreas = ['INGENIERIA', 'HISTORIA', 'ECONOMIA'];
     for (const folder of defaultAreas) {
-      const ev = await prisma.event.create({ data: { slug: folder.toLowerCase(), name: `Congreso de ${folder}` }});
+      const ev = await prisma.event.create({ data: { slug: folder.toLowerCase(), name: `Congreso de ${folder}` } });
       areas.push({ event: ev, files: [], name: folder });
     }
   }
@@ -151,30 +151,31 @@ async function seed() {
     const area = areas[idx];
     const evId = area.event.id;
     eventUserMap[evId] = { EDITOR: [], REVIEWER: [], AUTHOR: [] };
-    
+
     // Shuffle usuarios para distribuir
     const shuffled = [...nonAdmins].sort(() => 0.5 - Math.random());
-    
+
     // Dejar un pool para editores, revisores y autores
     const editors = shuffled.slice(0, 5);
-    const reviewers = shuffled.slice(5, 20);
-    const authors = shuffled.slice(20, 60);
+    const reviewers = shuffled.slice(0, 15);
+    const authors = shuffled.slice(0, 40);
 
-    // FORZAR USUARIOS PRO EN EL PRIMER EVENTO
+    // FORZAR USUARIOS PRO SOLO EN EL PRIMER EVENTO Y EN SU ROL ÚNICO
     if (idx === 0) {
-      reviewers.push(revisorPro);
-      authors.push(autorPro);
-      editors.push(editorPro);
+      // Antes de pushear, nos aseguramos de que no estén en las otras listas 
+      // (aunque con splice ya es difícil, es por seguridad con los usuarios Pro)
+      if (!reviewers.some(u => u.id === revisorPro.id)) reviewers.push(revisorPro);
+      if (!authors.some(u => u.id === autorPro.id)) authors.push(autorPro);
+      if (!editors.some(u => u.id === editorPro.id)) editors.push(editorPro);
     }
 
-    // Asegurarse de que multi_user tenga un rol diferente en distintos eventos
-    // Evento 0: AUTHOR, Evento 1: REVIEWER, Evento 2: EDITOR
+    // Asegurarse de que multi_user tenga UN SOLO ROL por evento
     if (idx === 0) {
-      if(!authors.includes(multiUser)) authors.push(multiUser);
+      authors.push(multiUser);
     } else if (idx === 1) {
-      if(!reviewers.includes(multiUser)) reviewers.push(multiUser);
+      reviewers.push(multiUser);
     } else if (idx === 2) {
-      if(!editors.includes(multiUser)) editors.push(multiUser);
+      editors.push(multiUser);
     }
 
     editors.forEach(u => {
@@ -213,7 +214,7 @@ async function seed() {
       const docUrl = area.files.length > 0 ? area.files[i] : `http://example.com/dummy_${area.name}_${i}.pdf`;
       const author = authorsInEvent[i % authorsInEvent.length];
       const editor = editorsInEvent[i % editorsInEvent.length];
-      
+
       const status = STATUSES[Math.floor(Math.random() * STATUSES.length)];
 
       const paper = await prisma.paper.create({
@@ -236,34 +237,41 @@ async function seed() {
 
       // Crear asignaciones / revisiones si el estado indica avance
       if (['UNDER_REVIEW', 'MINOR_CHANGES', 'MAJOR_CHANGES', 'ACCEPTED', 'REJECTED', 'COMPLETED'].includes(status)) {
-        // Asignar a 2 revisores
-        const rev1 = reviewersInEvent[(i * 2) % reviewersInEvent.length];
-        const rev2 = reviewersInEvent[(i * 2 + 1) % reviewersInEvent.length];
+        
+        // FILTRAR: El revisor NO puede ser el autor del paper
+        const validReviewers = reviewersInEvent.filter(rev => rev.id !== author.id);
+        
+        if (validReviewers.length >= 2) {
+          // Asignar a 2 revisores
+          const rev1 = validReviewers[(i * 2) % validReviewers.length];
+          const rev2 = validReviewers[(i * 2 + 1) % validReviewers.length];
 
-        const assign1 = await prisma.assignment.create({
-          data: { paperId: paper.id, reviewerId: rev1.id, status: ['RECEIVED', 'UNDER_REVIEW'].includes(status) ? 'IN_PROGRESS' : 'EVALUATED' }
-        });
-        const assign2 = await prisma.assignment.create({
-          data: { paperId: paper.id, reviewerId: rev2.id, status: ['RECEIVED', 'UNDER_REVIEW'].includes(status) ? 'IN_PROGRESS' : 'EVALUATED' }
-        });
+          const assign1 = await prisma.assignment.create({
+            data: { paperId: paper.id, reviewerId: rev1.id, status: ['RECEIVED', 'UNDER_REVIEW'].includes(status) ? 'IN_PROGRESS' : 'EVALUATED' }
+          });
+          const assign2 = await prisma.assignment.create({
+            data: { paperId: paper.id, reviewerId: rev2.id, status: ['RECEIVED', 'UNDER_REVIEW'].includes(status) ? 'IN_PROGRESS' : 'EVALUATED' }
+          });
+        
 
-        if (['MINOR_CHANGES', 'MAJOR_CHANGES', 'ACCEPTED', 'REJECTED', 'COMPLETED'].includes(status)) {
-          // Crear dictamen del revisor 1
-          await prisma.review.create({
-            data: {
-              paperId: paper.id, reviewerId: rev1.id, assignmentId: assign1.id,
-              verdict: status === 'REJECTED' ? 'REJECT' : (status === 'ACCEPTED' || status === 'COMPLETED' ? 'ACCEPT' : status),
-              originality: Math.floor(Math.random() * 3) + 3,
-              methodologicalRigor: Math.floor(Math.random() * 3) + 3,
-              writingQuality: Math.floor(Math.random() * 3) + 3,
-              relevance: Math.floor(Math.random() * 3) + 3,
-              comments: `Comentarios detallados sobre el trabajo de ${area.name}. Sugiero revisar la metodología y ampliar la introducción.`
-            }
-          });
-          
-          await prisma.paperHistory.create({
-            data: { paperId: paper.id, event: `Decisión editorial: ${status}`, detail: `Editor dictaminó el artículo como ${status}.`, userId: editor.id }
-          });
+          if (['MINOR_CHANGES', 'MAJOR_CHANGES', 'ACCEPTED', 'REJECTED', 'COMPLETED'].includes(status)) {
+            // Crear dictamen del revisor 1
+            await prisma.review.create({
+              data: {
+                paperId: paper.id, reviewerId: rev1.id, assignmentId: assign1.id,
+                verdict: status === 'REJECTED' ? 'REJECT' : (status === 'ACCEPTED' || status === 'COMPLETED' ? 'ACCEPT' : status),
+                originality: Math.floor(Math.random() * 3) + 3,
+                methodologicalRigor: Math.floor(Math.random() * 3) + 3,
+                writingQuality: Math.floor(Math.random() * 3) + 3,
+                relevance: Math.floor(Math.random() * 3) + 3,
+                comments: `Comentarios detallados sobre el trabajo de ${area.name}. Sugiero revisar la metodología y ampliar la introducción.`
+              }
+            });
+
+            await prisma.paperHistory.create({
+              data: { paperId: paper.id, event: `Decisión editorial: ${status}`, detail: `Editor dictaminó el artículo como ${status}.`, userId: editor.id }
+            });
+          }
         }
       }
     }

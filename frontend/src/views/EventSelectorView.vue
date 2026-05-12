@@ -155,13 +155,30 @@ const select = async (eventId) => {
 const joinEvent = async () => {
   if (!accessCode.value) return;
   joining.value = true;
+  
   try {
+    // 1. Unirse en el backend
     const { data } = await eventsApi.joinEvent(accessCode.value);
-    alert(data.data.message);
-    await auth.fetchMe();
+    
+    // 2. Refrescar el store 
+    await auth.refreshMe(); 
+    
+    // 3. Limpiar el input
     accessCode.value = '';
+    
+    // Notificar al usuario
+    alert(data?.data?.message || '¡Te has unido exitosamente!');
+
+    // 5. UX Extra: Si es su primer y único congreso, lo metemos directo
+    if (auth.userEvents.length === 1) {
+      const newEventId = auth.userEvents[0].event.id;
+      await select(newEventId); // Reutilizamos tu función select() que ya maneja los roles
+    }
+
   } catch (e) {
-    alert(e.response?.data?.error || 'Error al unirse al congreso');
+    console.error("Error uniéndose al evento:", e);
+    // Si e.response no existe (ej. error de sintaxis), mostramos un mensaje genérico
+    alert(e.response?.data?.error || 'Error al unirse al congreso. Revisa tu código.');
   } finally {
     joining.value = false;
   }

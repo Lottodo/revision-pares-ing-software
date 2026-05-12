@@ -74,14 +74,29 @@ export const register = async ({ username, email, password, accessCode }) => {
 
   const passwordHash = await bcrypt.hash(password, 10);
 
-  const user = await prisma.user.create({
-    data: { username: username.trim(), email: email.trim().toLowerCase(), passwordHash },
-    select: { id: true, username: true, email: true, createdAt: true },
-  });
+  let user;
 
   if (eventIdToJoin) {
-    await prisma.eventUser.create({
-      data: { userId: user.id, eventId: eventIdToJoin, role: 'AUTHOR' }
+    user = await prisma.user.create({
+      data: { 
+        username: username.trim(), 
+        email: email.trim().toLowerCase(), 
+        passwordHash,
+        // Insertamos la relación directamente en la creación del usuario
+        eventRoles: {
+          create: {
+            eventId: eventIdToJoin,
+            role: 'AUTHOR'
+          }
+        }
+      },
+      select: { id: true, username: true, email: true, createdAt: true },
+    });
+  } else {
+    // Si no hay congreso, lo creamos normal
+    user = await prisma.user.create({
+      data: { username: username.trim(), email: email.trim().toLowerCase(), passwordHash },
+      select: { id: true, username: true, email: true, createdAt: true },
     });
   }
 

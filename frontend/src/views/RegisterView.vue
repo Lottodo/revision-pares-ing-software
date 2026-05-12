@@ -24,7 +24,18 @@
           <p class="text-body-1 text-grey-darken-1">Registra tus credenciales para comenzar</p>
         </div>
 
-        <v-form @submit.prevent="handleRegister" v-model="isFormValid">
+        <v-alert
+          v-if="successMsg"
+          type="success"
+          variant="elevated"
+          class="mb-6 rounded-lg"
+          icon="mdi-check-decagram"
+          prominent
+        >
+          {{ successMsg }}
+        </v-alert>
+
+        <v-form v-if="!successMsg" @submit.prevent="handleRegister" v-model="isFormValid">
           <v-alert
             v-if="error"
             type="error"
@@ -124,6 +135,21 @@
             </router-link>
           </div>
         </v-form>
+
+        <div v-else class="text-center mt-4">
+          <v-btn
+            color="primary"
+            variant="flat"
+            class="w-100 rounded-pill font-weight-bold text-none"
+            size="large"
+            :to="{ name: 'login' }"
+          >
+            Ir al Inicio de Sesión
+          </v-btn>
+          <p class="text-caption text-grey-darken-1 mt-4 italic">
+            Serás redirigido automáticamente en unos segundos...
+          </p>
+        </div>
       </v-card>
     </div>
   </div>
@@ -146,7 +172,7 @@ const successMsg = ref('');
 const form   = reactive({ username: '', email: '', password: '', accessCode: '' });
 
 const handleRegister = async () => {
-  if (!isFormValid.value) return;
+  if (!isFormValid.value || loading.value || successMsg.value) return;
   loading.value = true;
   error.value = '';
   successMsg.value = '';
@@ -162,10 +188,11 @@ const handleRegister = async () => {
     } else {
       successMsg.value = 'Cuenta creada con éxito!';
     }
-    form.username = '';
-    form.email = '';
-    form.password = '';
-    form.accessCode = '';
+    
+    // simplemente esperamos y redirigimos.
+    setTimeout(() => {
+      router.push({ name: 'login' });
+    }, 3000); // 3 segundos para que el usuario lea el mensaje verde
   } catch (err) {
     error.value = err.response?.data?.error || 'Error al registrar la cuenta';
   }  finally {
