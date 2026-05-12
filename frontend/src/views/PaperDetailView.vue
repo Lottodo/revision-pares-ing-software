@@ -16,14 +16,14 @@
         <v-card-title class="text-h6" style="white-space:normal">{{ paper.title }}</v-card-title>
         <v-card-text>
           <p class="text-body-1 text-medium-emphasis mb-4">{{ paper.abstract }}</p>
-          <v-btn color="error" variant="tonal" prepend-icon="mdi-file-pdf-box" @click="openPdf(paper.documentUrl)" :loading="loadingPdf">
+          <v-btn color="error" variant="tonal" prepend-icon="mdi-file-pdf-box" @click="handlePdf(paper.documentUrl, false)" :loading="loadingPdf">
             Ver Documento Original
           </v-btn>
         </v-card-text>
       </v-card>
 
-      <!-- Evaluaciones Recibidas (Anonimizadas para el autor) -->
       <h2 class="text-h6 font-weight-bold mb-4">Evaluaciones Recibidas</h2>
+      
       <div v-if="reviews.length">
         <v-card v-for="(r, i) in reviews" :key="r.id" variant="outlined" rounded="xl" class="mb-4 pa-4">
           <div class="d-flex align-center mb-3">
@@ -31,46 +31,48 @@
               {{ verdictLabel(r.verdict) }}
             </v-chip>
             <span class="text-body-2 font-weight-bold text-medium-emphasis">Revisor {{ i + 1 }}</span>
+            <v-spacer />
+            <span class="text-caption text-medium-emphasis">{{ formatDate(r.createdAt) }}</span>
           </div>
           
           <v-row dense class="mb-3">
             <v-col v-for="(val, key) in rubric(r)" :key="key" cols="12" sm="6" md="3">
               <p class="text-caption text-medium-emphasis mb-1">{{ key }}</p>
-              <v-rating :model-value="val" :length="5" color="warning" density="compact" readonly size="18" />
+              <v-rating 
+                :model-value="val" 
+                :length="5" 
+                color="warning" 
+                density="compact" 
+                readonly 
+                size="18" 
+                half-increments
+              />
             </v-col>
           </v-row>
 
           <v-divider class="mb-3" />
-          <p class="text-body-2 mb-3">{{ r.comments }}</p>
+          <p class="text-body-2 mb-3" style="white-space: pre-wrap;">{{ r.comments }}</p>
 
-          <v-btn
-            v-if="r.annotatedPdfUrl"
-            color="secondary"
-            variant="tonal"
-            size="small"
-            prepend-icon="mdi-file-pdf-box"
-            @click="openPdf(r.annotatedPdfUrl)"
-            :loading="loadingPdf"
-          >
-            Descargar PDF Anotado
-          </v-btn>
+          <div v-if="r.annotatedPdfUrl" class="d-flex flex-wrap mt-2">
+            <v-btn color="info" variant="tonal" size="small" class="mr-3 mb-2" prepend-icon="mdi-eye" @click="handlePdf(r.annotatedPdfUrl, false)" :loading="loadingPdf">
+              Ver correcciones
+            </v-btn>
+            <v-btn color="secondary" variant="tonal" size="small" class="mb-2" prepend-icon="mdi-download" @click="handlePdf(r.annotatedPdfUrl, true)" :loading="loadingPdf">
+              Descargar
+            </v-btn>
+          </div>
         </v-card>
       </div>
+
       <v-card v-else variant="outlined" rounded="xl" class="pa-6 text-center bg-grey-lighten-4">
         <v-icon size="48" color="grey" class="mb-3">mdi-clipboard-text-outline</v-icon>
         <p class="text-body-1 text-medium-emphasis">Aún no hay evaluaciones publicadas para este artículo.</p>
       </v-card>
 
-      <!-- Historial de Cambios -->
       <h2 class="text-h6 font-weight-bold mb-4 mt-6">Historial del Artículo</h2>
       <v-card rounded="xl" elevation="2" class="pa-4 mb-6">
         <v-timeline v-if="history.length" density="compact" align="start" class="mb-4">
-          <v-timeline-item
-            v-for="h in history"
-            :key="h.id"
-            :dot-color="getHistoryColor(h.event)"
-            size="small"
-          >
+          <v-timeline-item v-for="h in history" :key="h.id" :dot-color="getHistoryColor(h.event)" size="small">
             <div class="mb-1">
               <strong>{{ h.event }}</strong>
               <span class="text-caption text-medium-emphasis ml-2">{{ new Date(h.createdAt).toLocaleString('es-MX') }}</span>
@@ -83,19 +85,10 @@
         <v-divider class="mb-4" />
         <p class="text-subtitle-2 font-weight-bold mb-2">Añadir Comentario</p>
         <div class="d-flex align-start">
-          <v-textarea
-            v-model="newHistoryNote"
-            variant="outlined"
-            density="compact"
-            rows="2"
-            placeholder="Escribe un comentario o respuesta para el editor/revisores..."
-            hide-details
-            class="mr-3"
-          />
+          <v-textarea v-model="newHistoryNote" variant="outlined" density="compact" rows="2" placeholder="Escribe un comentario..." hide-details class="mr-3" />
           <v-btn color="primary" rounded="lg" :loading="sendingNote" :disabled="!newHistoryNote.trim()" @click="addNote">Enviar</v-btn>
         </div>
       </v-card>
-
     </template>
   </v-container>
 </template>
@@ -121,7 +114,7 @@ const loadData = async () => {
   try {
     const [pRes, rRes, hRes] = await Promise.all([
       papersApi.getById(route.params.id),
-      reviewsApi.listByPaper(route.params.id),
+      reviewsApi.listByPaper(route.params.id), // El backend ya filtra isDraft: false
       papersApi.getHistory(route.params.id).catch(() => ({ data: { data: [] } }))
     ]);
     paper.value = pRes.data.data;
@@ -134,14 +127,23 @@ const loadData = async () => {
   }
 };
 
-const openPdf = async (url) => {
+const handlePdf = async (url, forceDownload = false) => {
   if (!url) return;
   loadingPdf.value = true;
   try {
     const blobUrl = await papersApi.downloadPdf(url);
-    window.open(blobUrl, '_blank');
+    const link = document.createElement('a');
+    link.href = blobUrl;
+    if (forceDownload) {
+      link.download = url.split('/').pop() || 'documento.pdf';
+    } else {
+      link.target = '_blank';
+    }
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   } catch (e) {
-    console.error('Error abriendo PDF:', e);
+    console.error('Error con PDF:', e);
   } finally {
     loadingPdf.value = false;
   }
@@ -162,10 +164,13 @@ const addNote = async () => {
   }
 };
 
+// Helpers de formato y color
 const statusColor = (s) => ({ RECEIVED: 'info', UNDER_REVIEW: 'warning', MINOR_CHANGES: 'orange', MAJOR_CHANGES: 'deep-orange', ACCEPTED: 'success', REJECTED: 'error' }[s] || 'grey');
 const statusLabel = (s) => ({ RECEIVED: 'Recibido', UNDER_REVIEW: 'En revisión', MINOR_CHANGES: 'Cambios menores', MAJOR_CHANGES: 'Cambios mayores', ACCEPTED: 'Aceptado', REJECTED: 'Rechazado' }[s] || s);
 const verdictColor = (v) => ({ ACCEPT: 'success', MINOR_CHANGES: 'warning', MAJOR_CHANGES: 'deep-orange', REJECT: 'error' }[v]);
 const verdictLabel = (v) => ({ ACCEPT: 'Aceptar', MINOR_CHANGES: 'Cambios Menores', MAJOR_CHANGES: 'Cambios Mayores', REJECT: 'Rechazar' }[v] || v);
+const formatDate = (d) => d ? new Date(d).toLocaleDateString('es-MX', { day:'2-digit', month:'short', year:'numeric'}) : '';
+
 const rubric = (r) => ({
   'Originalidad': r.originality,
   'Rigor Metod.': r.methodologicalRigor,

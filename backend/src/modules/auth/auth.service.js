@@ -4,8 +4,10 @@
 
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import { randomUUID } from 'node:crypto';
 import prisma from '../../config/prisma.js';
 import { env } from '../../config/env.js';
+import { consolidateEvents } from '../../shared/consolidateEvents.js';
 
 // ─── Helpers internos ────────────────────────────────────────────
 
@@ -24,9 +26,12 @@ const generateToken = async (user, eventId = null) => {
   }
 
   const payload = {
-    id:       user.id,
-    username: user.username,
-    eventId:  eventId ?? null,
+    id:            user.id,
+    username:      user.username,
+    username:      user.username,
+    isGlobalAdmin: user.isGlobalAdmin,
+    sessionId:     user.currentSessionId,
+    eventId:       eventId ?? null,
     roles,    // ['AUTHOR', 'REVIEWER'] — roles en el evento activo
   };
 
@@ -39,7 +44,7 @@ const generateToken = async (user, eventId = null) => {
  * Registra un nuevo usuario en el sistema.
  * Por defecto no tiene roles — se asignan por evento después.
  */
-export const register = async ({ username, email, password }) => {
+export const register = async ({ username, email, password, accessCode }) => {
   const exists = await prisma.user.findFirst({
     where: { OR: [{ username }, { email }] },
   });
@@ -51,12 +56,34 @@ export const register = async ({ username, email, password }) => {
     throw error;
   }
 
+  let eventIdToJoin = null;
+  if (accessCode) {
+    const event = await prisma.event.findUnique({ where: { slug: accessCode } });
+    if (!event) {
+      const e = new Error('El código de congreso proporcionado no es válido.');
+      e.status = 400;
+      throw e;
+    }
+    if (!event.active) {
+      const e = new Error('El congreso proporcionado está inactivo.');
+      e.status = 403;
+      throw e;
+    }
+    eventIdToJoin = event.id;
+  }
+
   const passwordHash = await bcrypt.hash(password, 10);
 
   const user = await prisma.user.create({
     data: { username: username.trim(), email: email.trim().toLowerCase(), passwordHash },
     select: { id: true, username: true, email: true, createdAt: true },
   });
+
+  if (eventIdToJoin) {
+    await prisma.eventUser.create({
+      data: { userId: user.id, eventId: eventIdToJoin, role: 'AUTHOR' }
+    });
+  }
 
   return user;
 };
@@ -90,23 +117,27 @@ export const login = async ({ username, password, eventId }) => {
   });
 
   // Consolidar: { eventId -> { event, roles[] } }
-  const eventsMap = {};
-  for (const m of memberships) {
-    if (!eventsMap[m.eventId]) {
-      eventsMap[m.eventId] = { event: m.event, roles: [] };
-    }
-    eventsMap[m.eventId].roles.push(m.role);
-  }
-  const userEvents = Object.values(eventsMap);
+  const userEvents = consolidateEvents(memberships);
+
+  // Generar y actualizar el sessionId para restringir múltiples dispositivos
+  const sessionId = randomUUID();
+  await prisma.user.update({
+    where: { id: user.id },
+    data: { currentSessionId: sessionId }
+  });
+  
+  // Actualizar el objeto user para que generateToken lo tenga
+  user.currentSessionId = sessionId;
 
   const token = await generateToken(user, eventId ?? null);
 
   return {
     token,
     user: {
-      id:       user.id,
-      username: user.username,
-      email:    user.email,
+      id:            user.id,
+      username:      user.username,
+      email:         user.email,
+      isGlobalAdmin: user.isGlobalAdmin,
     },
     // Eventos disponibles para que el frontend muestre selector
     events: userEvents,
@@ -153,9 +184,10 @@ export const getMe = async (userId) => {
     select: {
       id:         true,
       username:   true,
-      email:      true,
-      active:     true,
-      createdAt:  true,
+      email:         true,
+      active:        true,
+      isGlobalAdmin: true,
+      createdAt:     true,
       eventRoles: {
         include: {
           event: { select: { id: true, name: true, slug: true, active: true } },
@@ -170,21 +202,23 @@ export const getMe = async (userId) => {
     throw error;
   }
 
-  // Consolidar eventos y roles
-  const eventsMap = {};
-  for (const er of user.eventRoles) {
-    if (!eventsMap[er.eventId]) {
-      eventsMap[er.eventId] = { event: er.event, roles: [] };
-    }
-    eventsMap[er.eventId].roles.push(er.role);
-  }
-
   return {
     id:        user.id,
-    username:  user.username,
-    email:     user.email,
-    active:    user.active,
-    createdAt: user.createdAt,
-    events:    Object.values(eventsMap),
+    username:      user.username,
+    email:         user.email,
+    active:        user.active,
+    isGlobalAdmin: user.isGlobalAdmin,
+    createdAt:     user.createdAt,
+    events:    consolidateEvents(user.eventRoles),
   };
+};
+
+/**
+ * Cierra la sesión (invalida el token en todos los dispositivos)
+ */
+export const logout = async (userId) => {
+  await prisma.user.update({
+    where: { id: userId },
+    data: { currentSessionId: null },
+  });
 };

@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE `reviews` MODIFY `verdict` ENUM('ACCEPT', 'MINOR_CHANGES', 'MAJOR_CHANGES', 'REJECT') NULL,
+    MODIFY `comments` TEXT NULL;

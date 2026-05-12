@@ -1,5 +1,5 @@
-// src/modules/users/users.service.js
 import prisma from '../../config/prisma.js';
+import { consolidateEvents } from '../../shared/consolidateEvents.js';
 
 export const listAll = async () => {
   const users = await prisma.user.findMany({
@@ -12,12 +12,7 @@ export const listAll = async () => {
   });
 
   return users.map((u) => {
-    const eventsMap = {};
-    for (const er of u.eventRoles) {
-      if (!eventsMap[er.eventId]) eventsMap[er.eventId] = { event: er.event, roles: [] };
-      eventsMap[er.eventId].roles.push(er.role);
-    }
-    return { id: u.id, username: u.username, email: u.email, active: u.active, createdAt: u.createdAt, events: Object.values(eventsMap) };
+    return { id: u.id, username: u.username, email: u.email, active: u.active, createdAt: u.createdAt, events: consolidateEvents(u.eventRoles) };
   });
 };
 
@@ -31,12 +26,7 @@ export const getById = async (id) => {
   });
   if (!user) { const e = new Error('Usuario no encontrado.'); e.status = 404; throw e; }
 
-  const eventsMap = {};
-  for (const er of user.eventRoles) {
-    if (!eventsMap[er.eventId]) eventsMap[er.eventId] = { event: er.event, roles: [] };
-    eventsMap[er.eventId].roles.push(er.role);
-  }
-  return { ...user, eventRoles: undefined, events: Object.values(eventsMap) };
+  return { ...user, eventRoles: undefined, events: consolidateEvents(user.eventRoles) };
 };
 
 export const updateUser = async (id, data) => {
@@ -46,6 +36,37 @@ export const updateUser = async (id, data) => {
 };
 
 export const assignRole = async ({ userId, eventId, role }) => {
+  if (role === 'ADMIN') {
+    const e = new Error('No se puede asignar el rol de administrador desde esta interfaz. Solo hay un administrador root.');
+    e.status = 403;
+    throw e;
+  }
+
+  // ── Validación Doble Ciego ──────────────────────────────────
+  // Un autor no puede ser editor/revisor en el MISMO congreso y viceversa.
+  const conflictMap = {
+    REVIEWER: ['AUTHOR'],
+    EDITOR:   ['AUTHOR'],
+    AUTHOR:   ['REVIEWER', 'EDITOR'],
+  };
+
+  const conflictingRoles = conflictMap[role] ?? [];
+  if (conflictingRoles.length > 0) {
+    const conflicts = await prisma.eventUser.findMany({
+      where: { userId, eventId, role: { in: conflictingRoles } },
+    });
+    if (conflicts.length > 0) {
+      const conflictNames = conflicts.map(c => c.role).join(', ');
+      const e = new Error(
+        `Conflicto de doble ciego: el usuario ya tiene el rol "${conflictNames}" en este congreso. ` +
+        `Un ${role} no puede ser ${conflictNames} en el mismo evento.`
+      );
+      e.status = 409;
+      throw e;
+    }
+  }
+  // ────────────────────────────────────────────────────────────
+
   // Verificar que ambos existen
   const [user, event] = await Promise.all([
     prisma.user.findUnique({ where: { id: userId } }),
@@ -87,14 +108,20 @@ export const getUsersByEvent = async (eventId) => {
   return Object.values(map);
 };
 
-export const getReviewersByEvent = async (eventId) => {
+export const getReviewersByEvent = async (eventId, paperId = null) => {
   const memberships = await prisma.eventUser.findMany({
     where: { eventId, role: 'REVIEWER' },
-    include: { user: { select: { id: true, username: true, email: true } } },
+    include: { user: { select: { id: true, username: true, email: true, specialty: true } } },
   });
 
-  // Agregar carga de trabajo actual por revisor
-  return Promise.all(memberships.map(async (m) => {
+  let paperArea = null;
+  if (paperId) {
+    const paper = await prisma.paper.findUnique({ where: { id: paperId } });
+    if (paper) paperArea = paper.area;
+  }
+
+  // Agregar carga de trabajo actual por revisor y matchArea
+  const reviewers = await Promise.all(memberships.map(async (m) => {
     const workload = await prisma.assignment.count({
       where: {
         reviewerId: m.userId,
@@ -102,6 +129,17 @@ export const getReviewersByEvent = async (eventId) => {
         paper: { eventId },
       },
     });
-    return { id: m.user.id, username: m.user.username, email: m.user.email, workload };
+    
+    // Si la especialidad del revisor coincide (ignorando mayúsculas) con el área del paper, es un "match"
+    const matchArea = paperArea && m.user.specialty && m.user.specialty.toLowerCase() === paperArea.toLowerCase();
+    
+    return { id: m.user.id, username: m.user.username, email: m.user.email, specialty: m.user.specialty, workload, matchArea };
   }));
+
+  // Ordenar: primero los que hacen matchArea, luego por workload (menor primero)
+  return reviewers.sort((a, b) => {
+    if (a.matchArea && !b.matchArea) return -1;
+    if (!a.matchArea && b.matchArea) return 1;
+    return a.workload - b.workload;
+  });
 };

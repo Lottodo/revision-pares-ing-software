@@ -10,11 +10,6 @@ const router = Router();
 // Todos los endpoints de usuarios requieren estar autenticado
 router.use(verifyToken);
 
-// ── Gestión de usuarios (solo ADMIN) ──────────────────────────
-router.get('/',                     requireRole('ADMIN'), ctrl.listAll);
-router.get('/:id',                  requireRole('ADMIN'), validate(userIdParamSchema, 'params'), ctrl.getById);
-router.patch('/:id',                requireRole('ADMIN'), validate(userIdParamSchema, 'params'), validate(updateUserSchema), ctrl.updateUser);
-
 // ── Gestión de roles por evento (solo ADMIN) ──────────────────
 router.post('/roles/assign',        requireRole('ADMIN'), validate(assignRoleSchema), ctrl.assignRole);
 router.delete('/roles/remove',      requireRole('ADMIN'), validate(removeRoleSchema), ctrl.removeRole);
@@ -22,5 +17,10 @@ router.delete('/roles/remove',      requireRole('ADMIN'), validate(removeRoleSch
 // ── Miembros de un evento (ADMIN o EDITOR) ────────────────────
 router.get('/by-event/:eventId',    requireRole('ADMIN', 'EDITOR'), ctrl.getUsersByEvent);
 router.get('/reviewers/:eventId',   requireRole('ADMIN', 'EDITOR'), ctrl.getReviewersByEvent);
+
+// ── Gestión de usuarios (solo ADMIN) — SIEMPRE AL FINAL ───────
+router.get('/',                     requireRole('ADMIN'), ctrl.listAll);
+router.get('/:id',                  requireRole('ADMIN'), validate(userIdParamSchema, 'params'), ctrl.getById);
+router.patch('/:id',                requireRole('ADMIN'), validate(userIdParamSchema, 'params'), validate(updateUserSchema), ctrl.updateUser);
 
 export default router;

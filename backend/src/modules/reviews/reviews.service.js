@@ -30,8 +30,10 @@ export const createAssignment = async ({ paperId, reviewerId, deadline }, editor
   });
   if (existing) { const e = new Error('Este revisor ya está asignado a este artículo.'); e.status = 409; throw e; }
 
+  const finalDeadline = deadline ? new Date(deadline) : new Date(Date.now() + 5 * 24 * 60 * 60 * 1000);
+
   const assignment = await prisma.assignment.create({
-    data: { paperId, reviewerId, deadline: deadline ?? null, status: 'PENDING' },
+    data: { paperId, reviewerId, deadline: finalDeadline, status: 'PENDING' },
     include: { reviewer: { select: { id: true, username: true } } },
   });
 
@@ -88,83 +90,105 @@ export const cancelAssignment = async ({ paperId, reviewerId }, editorId, eventI
 // ─── EVALUACIONES ─────────────────────────────────────────────
 
 /**
- * Mis asignaciones pendientes (vista del REVISOR).
- * Solo devuelve artículos asignados al revisor en el evento activo.
- * SIN datos del autor — doble ciego.
+ * Obtiene la revisión actual de una asignación específica.
+ * Útil para cargar borradores al abrir el formulario.
  */
-export const myAssignments = async (reviewerId, eventId) => {
-  return prisma.assignment.findMany({
-    where: {
-      reviewerId,
-      status: { not: 'CANCELLED' },
-      paper: { eventId },
-    },
-    include: {
-      paper: {
-        select: {
-          id: true, title: true, abstract: true, documentUrl: true,
-          status: true, createdAt: true,
-          versions: { select: { version: true, url: true, createdAt: true } },
-          // authorId y author se omiten deliberadamente — doble ciego
-        },
-      },
-      review: { select: { id: true, verdict: true, createdAt: true } },
-    },
-    orderBy: { createdAt: 'desc' },
+export const getReviewByAssignment = async (assignmentId, reviewerId) => {
+  const review = await prisma.review.findFirst({
+    where: { assignmentId, reviewerId }
   });
+  return review;
 };
 
 /**
- * Envía una evaluación. Solo el REVISOR asignado puede hacerlo.
- * Valida que la asignación le pertenezca y no haya sido ya evaluada.
+ * Crea o Actualiza una evaluación (Borrador o Final).
+ * @param {boolean} isDraft - Si es true, guarda como borrador. Si es false, finaliza.
  */
-export const submitReview = async (data, reviewerId) => {
-  const { assignmentId, ...reviewData } = data;
+export const upsertReview = async (data, file, reviewerId, isDraft = false) => {
+  const assignmentId = parseInt(data.assignmentId);
+  
+  const { 
+    verdict, 
+    comments, 
+    originality, 
+    methodologicalRigor, 
+    writingQuality, 
+    relevance 
+  } = data;
 
   const assignment = await prisma.assignment.findUnique({
     where: { id: assignmentId },
-    include: { paper: { select: { id: true, eventId: true } } },
+    include: { paper: { select: { id: true } } },
   });
 
   if (!assignment) { const e = new Error('Asignación no encontrada.'); e.status = 404; throw e; }
   if (assignment.reviewerId !== reviewerId) { const e = new Error('No eres el revisor de esta asignación.'); e.status = 403; throw e; }
   if (assignment.status === 'CANCELLED') { const e = new Error('La asignación fue cancelada.'); e.status = 400; throw e; }
-  if (assignment.status === 'EVALUATED') { const e = new Error('Ya enviaste una evaluación para esta asignación.'); e.status = 409; throw e; }
+  
+  // Si intentas enviar como final pero ya estaba evaluada, error.
+  // Si es borrador, permitimos actualizar aunque ya exista.
+  if (!isDraft && assignment.status === 'EVALUATED') { 
+    const e = new Error('Ya enviaste una evaluación final para esta asignación.'); 
+    e.status = 409; throw e; 
+  }
 
-  // Verificar que no tenga ya un review en BD (por si acaso)
-  const existing = await prisma.review.findUnique({ where: { assignmentId } });
-  if (existing) { const e = new Error('Ya existe una evaluación para esta asignación.'); e.status = 409; throw e; }
+  // Si hay archivo nuevo, usamos esa ruta. Si no, mantenemos la anterior (si existe en el upsert).
+  const annotatedPdfUrl = file ? file.path : undefined;
 
-  const [review] = await prisma.$transaction([
-    prisma.review.create({
-      data: {
-        paperId:    assignment.paperId,
+  const reviewData = {
+    verdict,
+    comments,
+    isDraft,
+    originality: originality !== undefined ? Number(originality) : undefined,
+    methodologicalRigor: methodologicalRigor !== undefined ? Number(methodologicalRigor) : undefined,
+    writingQuality: writingQuality !== undefined ? Number(writingQuality) : undefined,
+    relevance: relevance !== undefined ? Number(relevance) : undefined,
+    ...(annotatedPdfUrl && { annotatedPdfUrl })
+  };
+
+  const result = await prisma.$transaction(async (tx) => {
+    // 1. Guardar o actualizar la revisión
+    const review = await tx.review.upsert({
+      where: { assignmentId },
+      update: reviewData,
+      create: {
+        ...reviewData,
+        paperId: assignment.paperId,
         reviewerId,
         assignmentId,
-        ...reviewData,
-      },
-    }),
-    prisma.assignment.update({
-      where: { id: assignmentId },
-      data: { status: 'EVALUATED' },
-    }),
-  ]);
+        // En creación, si no vienen los campos ponemos 0 por defecto
+        originality: Number(originality || 0),
+        methodologicalRigor: Number(methodologicalRigor || 0),
+        writingQuality: Number(writingQuality || 0),
+        relevance: Number(relevance || 0),
+      }
+    });
 
-  await logHistory(
-    assignment.paperId,
-    'Dictamen emitido',
-    `Un revisor emitió su evaluación: ${reviewData.verdict}.`,
-    reviewerId
-  );
+    // 2. Si NO es borrador, marcar la asignación como EVALUATED
+    if (!isDraft) {
+      await tx.assignment.update({
+        where: { id: assignmentId },
+        data: { status: 'EVALUATED' },
+      });
 
-  return review;
+      await logHistory(
+        assignment.paperId,
+        'Dictamen emitido',
+        `Un revisor finalizó su evaluación: ${verdict}.`,
+        reviewerId
+      );
+    } else {
+      // Si es borrador, opcionalmente registrar en el historial interno
+      console.log(`Borrador guardado para paper ${assignment.paperId} por revisor ${reviewerId}`);
+    }
+
+    return review;
+  });
+
+  return result;
 };
 
-/**
- * Lista evaluaciones de un artículo.
- * - EDITOR/ADMIN: ve nombre del revisor
- * - AUTHOR: ve veredicto y comentarios, SIN nombre del revisor (doble ciego)
- */
+// Modificamos listReviewsByPaper para que NO muestre borradores a los autores
 export const listReviewsByPaper = async (paperId, eventId, user) => {
   const { id: userId, roles = [] } = user;
   const isEditor = roles.includes('EDITOR') || roles.includes('ADMIN');
@@ -172,23 +196,95 @@ export const listReviewsByPaper = async (paperId, eventId, user) => {
   const paper = await prisma.paper.findFirst({ where: { id: paperId, eventId } });
   if (!paper) { const e = new Error('Artículo no encontrado.'); e.status = 404; throw e; }
 
-  // Author: solo puede ver evaluaciones de sus propios artículos
   if (!isEditor && paper.authorId !== userId) {
     const e = new Error('No tienes acceso a estas evaluaciones.'); e.status = 403; throw e;
   }
 
   const reviews = await prisma.review.findMany({
-    where: { paperId },
+    where: { 
+      paperId,
+      // IMPORTANTE: Solo mostrar revisiones terminadas (isDraft: false)
+      isDraft: false 
+    },
     include: {
       reviewer: { select: { id: true, username: true } },
     },
     orderBy: { createdAt: 'desc' },
   });
 
-  // Si es autor, ocultar datos del revisor
   if (!isEditor) {
     return reviews.map(({ reviewer: _r, reviewerId: _id, ...rest }) => rest);
   }
 
   return reviews;
+};
+
+/**
+ * Mis asignaciones pendientes (vista del REVISOR).
+ * Obtiene los artículos asignados al revisor que no han sido cancelados.
+ */
+export const myAssignments = async (reviewerId, eventId) => {
+  return prisma.assignment.findMany({
+    where: {
+      reviewerId,
+      status: { not: 'CANCELLED' },
+      paper: { eventId }, // Filtramos por el evento activo
+    },
+    include: {
+      paper: {
+        select: {
+          id: true,
+          title: true,
+          abstract: true,
+          documentUrl: true,
+          status: true,
+          createdAt: true,
+          versions: { 
+            select: { version: true, url: true, createdAt: true },
+            orderBy: { version: 'desc' } // Traer la última versión primero
+          },
+        },
+      },
+      review: { 
+        select: { 
+          id: true, 
+          verdict: true, 
+          isDraft: true, 
+          createdAt: true 
+        } 
+      },
+    },
+    orderBy: { createdAt: 'desc' },
+  });
+};
+
+/**
+ * El revisor acepta o rechaza una invitación a revisar.
+ */
+export const respondToAssignment = async (assignmentId, reviewerId, accept) => {
+  const assignment = await prisma.assignment.findFirst({
+    where: { id: assignmentId, reviewerId, status: 'PENDING' },
+  });
+
+  if (!assignment) {
+    const e = new Error('Invitación no encontrada o ya procesada.');
+    e.status = 404;
+    throw e;
+  }
+
+  const newStatus = accept ? 'IN_PROGRESS' : 'CANCELLED';
+
+  const updated = await prisma.assignment.update({
+    where: { id: assignmentId },
+    data: { status: newStatus },
+  });
+
+  await logHistory(
+    assignment.paperId,
+    accept ? 'Revisión aceptada' : 'Revisión rechazada',
+    `El revisor ha ${accept ? 'aceptado' : 'declinado'} la invitación.`,
+    reviewerId
+  );
+
+  return updated;
 };

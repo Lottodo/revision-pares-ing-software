@@ -1,4 +1,3 @@
-// src/modules/reviews/reviews.routes.js
 import { Router } from 'express';
 import * as ctrl from './reviews.controller.js';
 import { verifyToken } from '../../middleware/auth.js';
@@ -8,8 +7,11 @@ import {
   createAssignmentSchema,
   removeAssignmentSchema,
   submitReviewSchema,
+  saveDraftSchema, // <-- Importamos el nuevo esquema
   paperIdParamSchema,
+  assignmentIdParamSchema, // <-- Importamos para validar el GET
 } from './reviews.validator.js';
+import { upload } from '../../middleware/upload.js';
 
 const router = Router();
 router.use(verifyToken, requireEventContext);
@@ -21,10 +23,32 @@ router.get('/my-assignments',
   ctrl.myAssignments
 );
 
-// Enviar evaluación
+// Aceptar o rechazar invitación
+router.put('/assignments/:id/respond',
+  requireRole('REVIEWER'),
+  ctrl.respondToAssignment
+);
+
+// NUEVO: Obtener la revisión actual de una asignación (para cargar borradores)
+router.get('/assignment/:assignmentId',
+  requireRole('REVIEWER'),
+  validate(assignmentIdParamSchema, 'params'),
+  ctrl.getReviewByAssignment
+);
+
+// NUEVO: Guardar borrador
+router.post('/draft',
+  requireRole('REVIEWER'),
+  upload.single('annotatedPdf'),
+  validate(saveDraftSchema), // Usa el validador permisivo
+  ctrl.saveDraft
+);
+
+// Enviar evaluación final
 router.post('/submit',
   requireRole('REVIEWER'),
-  validate(submitReviewSchema),
+  upload.single('annotatedPdf'),
+  validate(submitReviewSchema), // Usa el validador estricto
   ctrl.submitReview
 );
 

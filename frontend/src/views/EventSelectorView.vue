@@ -41,6 +41,7 @@
 
             <v-progress-linear v-if="loading" indeterminate color="white" class="mb-4 rounded-pill" height="6"></v-progress-linear>
 
+            <h3 class="text-subtitle-1 font-weight-bold mb-3">Tus Congresos Inscritos</h3>
             <v-row v-if="auth.userEvents.length">
               <v-col v-for="ev in auth.userEvents" :key="ev.event.id" cols="12" sm="6">
                 <!-- Tarjeta Glassmorphism -->
@@ -122,7 +123,7 @@
 </template>
 
 <script setup>
-import { ref } from 'vue';
+import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '../stores/auth.js';
 import { eventsApi } from '../api/index.js';

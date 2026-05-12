@@ -138,9 +138,19 @@ const handleLogin = async () => {
   error.value = '';
 
   try {
-    await auth.login({ username: username.value, password: password.value });
-    const redirect = route.query.redirect || '/';
-    router.push(redirect);
+    const result = await auth.login({ username: username.value.trim(), password: password.value });
+    // Si no tiene evento activo y no es admin global → selector de eventos
+    if (!auth.eventId && !auth.isGlobalAdmin) {
+      router.push({ name: 'select-event' });
+    } else if (auth.isAdmin) {
+      router.push({ name: 'admin' });
+    } else if (auth.isEditor) {
+      router.push({ name: 'editor' });
+    } else if (auth.isReviewer) {
+      router.push({ name: 'reviewer' });
+    } else {
+      router.push({ name: 'author' });
+    }
   } catch (err) {
     error.value = err.response?.data?.error || 'Falló al iniciar sesión.';
   } finally {
