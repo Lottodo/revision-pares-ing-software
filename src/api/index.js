@@ -37,33 +37,21 @@ export const papersApi = {
 
 // src/api/reviews.js
 export const reviewsApi = {
-  // ── Revisor ──────────────────────────────────────────────────
-  myAssignments: () => api.get('/reviews/my-assignments'),
-  
-  // NUEVO: Obtener el borrador existente de una asignación
-  getReviewByAssignment: (assignmentId) => api.get(`/reviews/assignment/${assignmentId}`),
-
-  // NUEVO: Guardar borrador (soporta JSON o FormData para el PDF)
-  saveDraft: (data) =>
-    data instanceof FormData
-      ? api.post('/reviews/draft', data, { headers: { 'Content-Type': 'multipart/form-data' } })
-      : api.post('/reviews/draft', data),
-
-  // Envío final (se mantiene como 'submit' para que el Store no rompa)
-  submit: (data) =>
-    data instanceof FormData
+  // Revisor
+  myAssignments: ()     => api.get('/reviews/my-assignments'),
+  submit:        (data) => 
+    data instanceof FormData 
       ? api.post('/reviews/submit', data, { headers: { 'Content-Type': 'multipart/form-data' } })
       : api.post('/reviews/submit', data),
-
   respondToAssignment: (id, accept) => api.put(`/reviews/assignments/${id}/respond`, { accept }),
 
-  // ── Editor / Admin ───────────────────────────────────────────
-  createAssignment: (data) => api.post('/reviews/assignments', data),
+  // Editor / Admin
+  createAssignment: (data)             => api.post('/reviews/assignments', data),
   cancelAssignment: (paperId, reviewerId) =>
     api.delete('/reviews/assignments', { data: { paperId, reviewerId } }),
-  listAssignments: (paperId) => api.get(`/reviews/assignments/${paperId}`),
+  listAssignments:  (paperId)          => api.get(`/reviews/assignments/${paperId}`),
 
-  // ── Compartido ───────────────────────────────────────────────
+  // Compartido (editor ve todo, autor ve sin revisor)
   listByPaper: (paperId) => api.get(`/reviews/paper/${paperId}`),
 };
 

@@ -134,41 +134,35 @@ import { ref, reactive } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '../stores/auth.js';
 
-const auth     = useAuthStore();
-const router   = useRouter();
+const router = useRouter();
+const auth = useAuthStore();
 
 const isFormValid = ref(false);
 const showPassword = ref(false);
-const loading  = ref(false);
+const loading = ref(false);
 const error = ref('');
-const successMsg = ref('');
 
-const form   = reactive({ username: '', email: '', password: '', accessCode: '' });
+const form = reactive({
+  username: '',
+  email: '',
+  password: '',
+  accessCode: '',
+});
 
 const handleRegister = async () => {
   if (!isFormValid.value) return;
+
   loading.value = true;
   error.value = '';
-  successMsg.value = '';
+
   try {
-    await auth.register({ 
-      username: form.username.trim(), 
-      email: form.email.trim(),
-      password: form.password,
-      accessCode: form.accessCode.trim()
-    });
-    if (form.accessCode.trim()) {
-      successMsg.value = 'Cuenta creada y asociada al congreso exitosamente.';
-    } else {
-      successMsg.value = 'Cuenta creada con éxito!';
-    }
-    form.username = '';
-    form.email = '';
-    form.password = '';
-    form.accessCode = '';
+    await auth.register(form);
+    // Tras el registro, login automático suele ser util (dependiendo si register de auth.js de Pinia hace login)
+    // El Pinia register ya hace dispatch de auth y pone token.
+    router.push('/');
   } catch (err) {
-    error.value = err.response?.data?.error || 'Error al registrar la cuenta';
-  }  finally {
+    error.value = err.response?.data?.error || 'No se pudo crear la cuenta, revisa tus datos.';
+  } finally {
     loading.value = false;
   }
 };

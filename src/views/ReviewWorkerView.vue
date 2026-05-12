@@ -1,6 +1,7 @@
 <template>
   <v-container fluid class="pa-0 fill-height" style="background: #f4f6f8">
     <v-row no-gutters class="fill-height">
+      <!-- PANEL IZQUIERDO: VISOR DE PDF -->
       <v-col cols="12" md="8" class="fill-height d-flex flex-column border-e">
         <v-toolbar color="primary" density="compact">
           <v-btn icon="mdi-arrow-left" variant="text" @click="router.push({ name: 'reviewer' })"></v-btn>
@@ -10,14 +11,20 @@
         </v-toolbar>
         
         <div class="flex-grow-1 position-relative bg-grey-darken-3">
-          <div ref="viewerRef" style="height: 100%; width: 100%;"></div>
-
-          <div v-if="!pdfBlobUrl" class="d-flex align-center justify-center fill-height position-absolute w-100" style="top:0; z-index: 1">
-            <v-progress-circular indeterminate color="white"></v-progress-circular>
+          <iframe 
+            v-if="pdfBlobUrl"
+            :src="pdfBlobUrl"
+            width="100%" 
+            height="100%" 
+            style="border: none;"
+          ></iframe>
+          <div v-else class="d-flex align-center justify-center fill-height">
+            <v-progress-circular indeterminate color="primary"></v-progress-circular>
           </div>
         </div>
       </v-col>
 
+      <!-- PANEL DERECHO: NOTAS OFFLINE -->
       <v-col cols="12" md="4" class="fill-height d-flex flex-column bg-surface">
         <v-toolbar color="surface" density="compact" class="border-b">
           <v-icon color="warning" class="mr-2 ml-4">mdi-notebook-edit</v-icon>
@@ -57,7 +64,6 @@
             prepend-icon="mdi-send-check" 
             size="large"
             rounded="lg"
-            :loading="isExtractingPdf"
             @click="openRubric"
           >
             Emitir Dictamen Final
@@ -66,23 +72,22 @@
       </v-col>
     </v-row>
 
+    <!-- Dialog para la Rúbrica Final (Reutiliza tu ReviewFormDialog) -->
     <ReviewFormDialog 
       v-model="showRubric" 
       :assignment="assignment" 
       :prefilledNotes="notes"
-      :annotatedPdf="annotatedPdf" 
       @submitted="onReviewSubmitted" 
     />
   </v-container>
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue';
+import { ref, onMounted, onUnmounted, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useReviewsStore } from '../stores/reviews.js';
-import { papersApi, reviewsApi } from '../api/index.js'; // 1. Agregamos reviewsApi
+import { papersApi } from '../api/index.js';
 import ReviewFormDialog from '../components/ReviewFormDialog.vue';
-import WebViewer from '@pdftron/webviewer';
 
 const route = useRoute();
 const router = useRouter();
@@ -91,11 +96,6 @@ const store = useReviewsStore();
 const assignmentId = parseInt(route.params.id);
 const assignment = ref(null);
 const pdfBlobUrl = ref('');
-
-const viewerRef = ref(null);
-const wvInstance = ref(null);
-const annotatedPdf = ref(null); 
-const isExtractingPdf = ref(false);
 
 const notes = ref('');
 const lastSaved = ref('');
@@ -117,33 +117,8 @@ const saveNotesLocally = () => {
   lastSaved.value = new Date().toLocaleTimeString();
 };
 
-// --- FUNCIÓN PARA EXTRAER EL PDF ACTUAL (CON DIBUJOS) ---
-const preparePdfForReview = async () => {
-  if (!wvInstance.value) return null;
-  
-  const { documentViewer, annotationManager } = wvInstance.value.Core;
-  const doc = documentViewer.getDocument();
-  
-  if (doc) {
-    const xfdfString = await annotationManager.exportAnnotations();
-    const data = await doc.getFileData({ xfdfString });
-    const arr = new Uint8Array(data);
-    return new Blob([arr], { type: 'application/pdf' });
-  }
-  return null;
-};
-
-const openRubric = async () => {
-  isExtractingPdf.value = true;
-  try {
-    // 2. Extraemos el PDF justo antes de abrir el modal
-    annotatedPdf.value = await preparePdfForReview();
-  } catch (error) {
-    console.error("Error al extraer el PDF:", error);
-  } finally {
-    isExtractingPdf.value = false;
-    showRubric.value = true;
-  }
+const openRubric = () => {
+  showRubric.value = true;
 };
 
 const onReviewSubmitted = () => {
@@ -166,38 +141,13 @@ onMounted(async () => {
     return;
   }
 
-  // 3. Lógica de carga inteligente
-  try {
-    let urlToDownload = assignment.value.paper?.documentUrl;
-
-    // Consultamos si ya existe una revisión (borrador) guardada
-    const { data: reviewRes } = await reviewsApi.getReviewByAssignment(assignmentId);
-    const draft = reviewRes.data;
-
-    // Si el borrador ya tiene un PDF con rayones, usamos ese
-    if (draft && draft.annotatedPdfUrl) {
-      urlToDownload = draft.annotatedPdfUrl;
-      console.log("Cargando borrador previo con anotaciones...");
+  // Descargar PDF de forma segura
+  if (assignment.value.paper?.documentUrl) {
+    try {
+      pdfBlobUrl.value = await papersApi.downloadPdf(assignment.value.paper.documentUrl);
+    } catch (e) {
+      console.error('Error al cargar PDF:', e);
     }
-
-    if (urlToDownload) {
-      pdfBlobUrl.value = await papersApi.downloadPdf(urlToDownload);
-      
-      WebViewer(
-        {
-          path: '/webviewer', 
-          initialDoc: pdfBlobUrl.value, 
-        },
-        viewerRef.value
-      ).then((instance) => {
-        wvInstance.value = instance;
-        instance.UI.setLanguage('es');
-        instance.UI.setToolbarGroup('Annotate');
-        instance.UI.setTheme('dark'); 
-      });
-    }
-  } catch (e) {
-    console.error('Error al inicializar el visor:', e);
   }
 
   loadLocalNotes();
