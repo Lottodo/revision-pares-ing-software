@@ -5,6 +5,7 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import { authApi } from '../api/auth.js';
+import api from '../api/client.js';
 
 export const useAuthStore = defineStore('auth', () => {
   // ── Estado ──────────────────────────────────────────────────
@@ -45,14 +46,23 @@ export const useAuthStore = defineStore('auth', () => {
     const { data } = await authApi.login(credentials);
     const result = data.data;
 
+    // Guardamos el token en el estado y en el storage INMEDIATAMENTE
     token.value      = result.token;
     user.value       = result.user;
     userEvents.value = result.events || [];
+
+    // Inyectamos el token en Axios manualmente para que la siguiente petición (switchEvent) 
+    // no falle aunque el interceptor aún no lo vea en el storage
+    api.defaults.headers.common['Authorization'] = `Bearer ${result.token}`;
+    
+    // Persistimos de una vez para que switchEvent tenga acceso al storage si lo necesita
+    persist();
 
     // Auto-seleccionar evento si solo hay uno o si vino eventId en el login
     if (result.activeEventId && result.events.length > 0) {
       const ev = result.events.find((e) => e.event.id === result.activeEventId);
       activeEvent.value = ev ?? result.events[0] ?? null;
+      persist(); // Guardamos el evento seleccionado
     } else if (result.events.length === 1) {
       await switchEvent(result.events[0].event.id);
       return result;
@@ -60,7 +70,6 @@ export const useAuthStore = defineStore('auth', () => {
       activeEvent.value = null; // Usuario debe seleccionar evento
     }
 
-    persist();
     return result;
   };
 
@@ -81,6 +90,9 @@ export const useAuthStore = defineStore('auth', () => {
 
     token.value = result.token;
 
+    // ACTUALIZA EL TOKEN EN AXIOS (NUEVO TOKEN CON ROLES)
+    api.defaults.headers.common['Authorization'] = `Bearer ${result.token}`;
+    
     // Actualizar evento activo con los nuevos roles
     const ev = userEvents.value.find((e) => e.event.id === eventId);
     activeEvent.value = ev

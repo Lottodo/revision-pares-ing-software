@@ -98,7 +98,7 @@
       </v-form>
 
       <!-- Divisor minimalista de credenciales -->
-      <div class="mt-8 pt-4 border-t border-grey-lighten-2">
+      <!-- <div class="mt-8 pt-4 border-t border-grey-lighten-2">
         <div class="d-flex justify-space-evenly">
           <div class="text-center text-grey-darken-3">
             <div class="text-caption font-weight-bold mb-1">Admin</div>
@@ -110,7 +110,7 @@
             <div class="text-caption opacity-80"><span class="font-weight-black">multi_user</span> / 1234</div>
           </div>
         </div>
-      </div>
+      </div> -->
     </v-card>
   </div>
 </template>
