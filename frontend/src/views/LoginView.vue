@@ -138,7 +138,7 @@ const handleLogin = async () => {
   error.value = '';
 
   try {
-    const result = await auth.login({ username: form.username.trim(), password: form.password });
+    const result = await auth.login({ username: username.value.trim(), password: password.value });
     // Si no tiene evento activo y no es admin global → selector de eventos
     if (!auth.eventId && !auth.isGlobalAdmin) {
       router.push({ name: 'select-event' });
