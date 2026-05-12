@@ -110,17 +110,12 @@ Una vez que hayas completado el Paso 2 (ya sea con Docker o Manual), abre tu nav
 La aplicación ya viene con cuentas creadas para que puedas probarla inmediatamente.  
 **La contraseña para todas las cuentas es:** `1234`
 
-| Usuario       | Rol en Congreso IA 2025 | Rol en Simposio SW 2025 |
-|---------------|------------------------|------------------------|
-| `admin`       | Administrador          | Administrador          |
-| `editor_ia`   | Editor                 | —                      |
-| `editor_sw`   | —                      | Editor                 |
-| `revisor1`    | Revisor                | —                      |
-| `revisor2`    | Revisor                | Revisor                |
-| `autor1`      | Autor                  | Autor                  |
-| `multiusuario`| Autor                  | Revisor                |
-
----
+| Usuarios de prueba |       
+|--------------------|
+|   `admin_root`     | 
+|   `autor_pro`      | 
+|   `editor_pro`     | 
+|   `revisor_pro`    |
 
 ## 4. Errores Comunes y Notas Adicionales
 
