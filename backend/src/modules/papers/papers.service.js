@@ -205,6 +205,9 @@ export const updateStatus = async (paperId, eventId, newStatus, editorId, editor
  * - EDITOR/ADMIN: cualquiera
  * - REVIEWER: no tiene acceso
  */
+// Eventos de historial que revelan identidad del revisor — ocultos al Autor (doble ciego)
+const BLIND_HISTORY_EVENTS = ['Revisor asignado', 'Revisor removido', 'En revisión'];
+
 export const getHistory = async (paperId, eventId, user) => {
   const { id: userId, roles = [] } = user;
   const isEditor = roles.includes('EDITOR') || roles.includes('ADMIN');
@@ -216,11 +219,16 @@ export const getHistory = async (paperId, eventId, user) => {
     const e = new Error('No tienes permiso para ver este historial.'); e.status = 403; throw e;
   }
 
-  return prisma.paperHistory.findMany({
+  const allHistory = await prisma.paperHistory.findMany({
     where: { paperId },
     orderBy: { createdAt: 'asc' },
     select: { id: true, event: true, detail: true, createdAt: true },
   });
+
+  // El Editor/Admin ve todo. El Autor solo ve entradas que NO revelen identidad de revisores.
+  if (isEditor) return allHistory;
+
+  return allHistory.filter(h => !BLIND_HISTORY_EVENTS.includes(h.event));
 };
 
 /**
