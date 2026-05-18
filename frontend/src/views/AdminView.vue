@@ -119,7 +119,13 @@
                 <v-btn size="small" variant="tonal" color="info" prepend-icon="mdi-account-group" @click="openEventMembersDialog(ev)">
                   Miembros
                 </v-btn>
+                <v-btn size="small" variant="tonal" color="warning" prepend-icon="mdi-email-open-multiple" class="ml-2" @click="openRequestsDialog(ev)">
+                  Solicitudes
+                </v-btn>
                 <v-spacer />
+                <v-btn size="small" variant="text" prepend-icon="mdi-email-fast" color="primary" @click="openInviteDialog(ev)">
+                  Invitar
+                </v-btn>
                 <v-btn size="small" variant="text" prepend-icon="mdi-pencil" @click="openEditEvent(ev)">
                   Editar
                 </v-btn>
@@ -193,6 +199,16 @@
       @saved="loadEvents"
     />
 
+    <EventRequestsDialog
+      v-model="showRequestsDialog"
+      :event="selectedEvent"
+    />
+
+    <InviteUserDialog
+      v-model="showInviteDialog"
+      :event="selectedEvent"
+    />
+
     <v-snackbar v-model="snackbar.show" :color="snackbar.color" timeout="3000" location="bottom end">
       {{ snackbar.message }}
     </v-snackbar>
@@ -205,6 +221,8 @@ import { useAuthStore } from '../stores/auth.js';
 import { usersApi, eventsApi } from '../api/index.js';
 import AssignRoleDialog from '../components/AssignRoleDialog.vue';
 import CreateEventDialog from '../components/CreateEventDialog.vue';
+import EventRequestsDialog from '../components/EventRequestsDialog.vue';
+import InviteUserDialog from '../components/InviteUserDialog.vue';
 import { useRouter } from 'vue-router';
 
 const auth   = useAuthStore();
@@ -219,9 +237,12 @@ const userSearch    = ref('');
 const selectedUser  = ref(null);
 const editingEvent   = ref(null);
 const selectedEventForMembers = ref(null);
+const selectedEvent  = ref(null);
 const showAssignRole = ref(false);
 const showCreateEvent= ref(false);
 const showMembersDialog = ref(false);
+const showRequestsDialog = ref(false);
+const showInviteDialog = ref(false);
 const loadingUsers   = ref(false);
 const loadingMembers = ref(false);
 const loadingEvents  = ref(false);
@@ -295,6 +316,16 @@ const refreshAll = async () => {
 const openAssignRole = (user) => {
   selectedUser.value = user;
   showAssignRole.value = true;
+};
+
+const openRequestsDialog = (ev) => {
+  selectedEvent.value = ev;
+  showRequestsDialog.value = true;
+};
+
+const openInviteDialog = (ev) => {
+  selectedEvent.value = ev;
+  showInviteDialog.value = true;
 };
 
 const openEventMembersDialog = async (ev) => {

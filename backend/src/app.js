@@ -15,6 +15,7 @@ import usersRoutes   from './modules/users/users.routes.js';
 import eventsRoutes  from './modules/events/events.routes.js';
 import papersRoutes  from './modules/papers/papers.routes.js';
 import reviewsRoutes from './modules/reviews/reviews.routes.js';
+import invitationsRoutes from './modules/invitations/invitations.routes.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -43,8 +44,9 @@ app.get('/api/health', (_req, res) => {
 app.use('/api/auth',    authRoutes);
 app.use('/api/users',   usersRoutes);
 app.use('/api/events',  eventsRoutes);
-app.use('/api/papers',  papersRoutes);
-app.use('/api/reviews', reviewsRoutes);
+app.use('/api/papers',      papersRoutes);
+app.use('/api/reviews',     reviewsRoutes);
+app.use('/api/invitations', invitationsRoutes);
 
 // ── 404 para rutas de API desconocidas ────────────────────────
 app.use('/api/*', (_req, res) => {

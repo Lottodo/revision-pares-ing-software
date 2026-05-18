@@ -31,3 +31,17 @@ export const joinEvent = async (req, res) => {
     return err.status ? fail(res, err.message, err.status) : serverError(res, err); 
   }
 };
+
+// ── Solicitudes de acceso (Rol AUTHOR) ──────────────────────
+
+export const requestAccess = handle((req) => 
+  svc.requestAccess(req.user.id, parseInt(req.params.id), req.body.message)
+);
+
+export const listRequests = handle((req) => 
+  svc.listRequests(parseInt(req.params.id), req.query.status)
+);
+
+export const respondRequest = handle((req) => 
+  svc.respondRequest(parseInt(req.params.requestId), req.body.approve, req.body.adminNote)
+);

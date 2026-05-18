@@ -9,7 +9,19 @@ export const eventsApi = {
   create:    (payload) => api.post('/events', payload),
   update:    (id, payload) => api.patch(`/events/${id}`, payload),
   joinEvent: (accessCode) => api.post('/events/join', { accessCode }),
+  requestAccess: (id, message) => api.post(`/events/${id}/request`, { message }),
+  listRequests: (id, status) => api.get(`/events/${id}/requests`, { params: { status } }),
+  respondRequest: (requestId, approve, adminNote) => api.patch(`/events/requests/${requestId}`, { approve, adminNote }),
   remove:    (id)      => api.delete(`/events/${id}`),
+};
+
+// src/api/invitations.js
+export const invitationsApi = {
+  myInvitations: () => api.get('/invitations/my'),
+  respond: (token, accept) => api.patch(`/invitations/${token}/respond`, { accept }),
+  send: (data) => api.post('/invitations', data),
+  listByEvent: (eventId) => api.get(`/invitations/event/${eventId}`),
+  cancel: (id) => api.delete(`/invitations/${id}`),
 };
 
 // src/api/papers.js

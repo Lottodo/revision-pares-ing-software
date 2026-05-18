@@ -23,4 +23,14 @@ router.post('/',             requireGlobalAdmin, validate(createEventSchema), ct
 router.patch('/:id',         requireRole('ADMIN'), validate(eventIdParamSchema, 'params'), validate(updateEventSchema), ctrl.update);
 router.delete('/:id',        requireRole('ADMIN'), validate(eventIdParamSchema, 'params'), ctrl.remove);
 
+// ── Solicitudes de acceso ──────────────────────────────────
+// Usuario solicita ser autor
+router.post('/:id/request',  validate(eventIdParamSchema, 'params'), ctrl.requestAccess);
+
+// Admin ve las solicitudes
+router.get('/:id/requests',  requireRole('ADMIN', 'EDITOR'), validate(eventIdParamSchema, 'params'), ctrl.listRequests);
+
+// Admin aprueba o rechaza una solicitud
+router.patch('/requests/:requestId', requireRole('ADMIN', 'EDITOR'), ctrl.respondRequest);
+
 export default router;

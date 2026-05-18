@@ -8,6 +8,8 @@ export const createEventSchema = z.object({
   startDate:   z.coerce.date().optional(),
   endDate:     z.coerce.date().optional(),
   active:      z.boolean().default(true),
+  isPublic:    z.boolean().optional(),
+  accessCode:  z.string().optional(),
 });
 
 export const updateEventSchema = createEventSchema.partial().refine(

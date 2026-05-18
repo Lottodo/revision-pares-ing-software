@@ -24,6 +24,7 @@ export const useAuthStore = defineStore('auth', () => {
   const isEditor   = computed(() => roles.value.includes('EDITOR') || isAdmin.value);
   const isReviewer = computed(() => roles.value.includes('REVIEWER'));
   const isAuthor   = computed(() => roles.value.includes('AUTHOR'));
+  const isAttendee = computed(() => roles.value.includes('ATTENDEE') && !isAuthor.value && !isReviewer.value && !isEditor.value && !isAdmin.value);
 
   // ── Helpers privados ─────────────────────────────────────────
   const persist = () => {
@@ -129,7 +130,7 @@ export const useAuthStore = defineStore('auth', () => {
     token, user, activeEvent, userEvents,
     // Computed
     isAuthenticated, roles, eventId,
-    isAdmin, isGlobalAdmin, isEditor, isReviewer, isAuthor,
+    isAdmin, isGlobalAdmin, isEditor, isReviewer, isAuthor, isAttendee,
     // Acciones
     login, register, logout, switchEvent, refreshMe,
   };

@@ -41,7 +41,30 @@
 
             <v-progress-linear v-if="loading" indeterminate color="white" class="mb-4 rounded-pill" height="6"></v-progress-linear>
 
-            <h3 class="text-subtitle-1 font-weight-bold mb-3">Tus Congresos Inscritos</h3>
+            <!-- ── Invitaciones Pendientes ── -->
+            <div v-if="invitations.length > 0" class="mb-8">
+              <h3 class="text-subtitle-1 font-weight-bold mb-3 text-warning">
+                <v-icon start color="warning">mdi-email-alert</v-icon> Tienes Invitaciones Pendientes
+              </h3>
+              <v-row>
+                <v-col v-for="inv in invitations" :key="inv.id" cols="12" sm="6">
+                  <v-card class="glass-card rounded-xl border-warning pa-4" elevation="0">
+                    <div class="d-flex align-center justify-space-between mb-2">
+                      <h4 class="text-white text-body-1 font-weight-bold">{{ inv.event.name }}</h4>
+                      <v-chip size="x-small" :color="roleColor(inv.role)" class="font-weight-bold">{{ roleLabel(inv.role) }}</v-chip>
+                    </div>
+                    <div class="d-flex gap-2 mt-4">
+                      <v-btn flex-grow-1 color="success" variant="flat" size="small" rounded="lg" @click="respondInvitation(inv.token, true)">Aceptar</v-btn>
+                      <v-btn flex-grow-1 color="error" variant="tonal" size="small" rounded="lg" @click="respondInvitation(inv.token, false)">Rechazar</v-btn>
+                    </div>
+                  </v-card>
+                </v-col>
+              </v-row>
+              <v-divider class="my-6 border-opacity-25" color="white"></v-divider>
+            </div>
+
+            <!-- ── Congresos Inscritos ── -->
+            <h3 class="text-subtitle-1 font-weight-bold mb-3 text-white">Tus Congresos Inscritos</h3>
             <v-row v-if="auth.userEvents.length">
               <v-col v-for="ev in auth.userEvents" :key="ev.event.id" cols="12" sm="6">
                 <!-- Tarjeta Glassmorphism -->
@@ -126,17 +149,44 @@
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '../stores/auth.js';
-import { eventsApi } from '../api/index.js';
+import { eventsApi, invitationsApi } from '../api/index.js';
 
 const auth     = useAuthStore();
 const router   = useRouter();
 const loading  = ref(false);
+const loadingInvitations = ref(false);
 const switching = ref(null);
 const joining  = ref(false);
 const accessCode = ref('');
+const invitations = ref([]);
 
-const roleColor = (role) => ({ ADMIN: 'error', EDITOR: 'secondary', REVIEWER: 'warning', AUTHOR: 'accent' }[role]);
-const roleLabel = (role) => ({ ADMIN: 'Admin', EDITOR: 'Editor', REVIEWER: 'Revisor', AUTHOR: 'Autor' }[role] || role);
+const roleColor = (role) => ({ ADMIN: 'error', EDITOR: 'secondary', REVIEWER: 'warning', AUTHOR: 'accent', ATTENDEE: 'grey' }[role]);
+const roleLabel = (role) => ({ ADMIN: 'Admin', EDITOR: 'Editor', REVIEWER: 'Revisor', AUTHOR: 'Autor', ATTENDEE: 'Asistente' }[role] || role);
+
+const loadInvitations = async () => {
+  loadingInvitations.value = true;
+  try {
+    const { data } = await invitationsApi.myInvitations();
+    invitations.value = data.data;
+  } catch (e) {
+    console.error(e);
+  } finally {
+    loadingInvitations.value = false;
+  }
+};
+
+onMounted(loadInvitations);
+
+const respondInvitation = async (token, accept) => {
+  try {
+    const { data } = await invitationsApi.respond(token, accept);
+    alert(data.data.message);
+    await loadInvitations();
+    await auth.refreshMe();
+  } catch (e) {
+    alert(e.response?.data?.error || 'Error al procesar la invitación');
+  }
+};
 
 const select = async (eventId) => {
   switching.value = eventId;
