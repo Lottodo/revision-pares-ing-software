@@ -101,6 +101,11 @@ export const test = base.extend({
       localStorage.setItem('activeEvent', authData.activeEvent);
       localStorage.setItem('userEvents', authData.userEvents);
     }, autorUser);
+    
+    // Forzar navegación al dashboard y esperar a que la sesión esté completamente asentada y el banner visible
+    await page.goto('/author');
+    await expect(page.getByRole('banner')).toBeVisible({ timeout: 15000 });
+    
     await use(page);
   },
   

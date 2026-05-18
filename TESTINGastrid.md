@@ -31,18 +31,25 @@ El script `tests/e2e/comprehensive_pwa_tester.py` **sí usa Playwright** (la lib
 para los flujos de interfaz de usuario. El script `system_test_report.py` usa `requests`
 porque prueba principalmente la capa de API y Docker, donde un browser sería excesivo.
 
-### Cómo instalar Playwright Test for VSCode (para uso futuro)
+### Cómo Ejecutar la Suite de Pruebas E2E de Playwright (Actual)
+
+El proyecto cuenta con una suite completa de **11 pruebas automatizadas** en Playwright (Node.js) que validan todo el sistema de forma integral (seguridad, doble ciego, PWA offline, flujos de roles mixtos y flujos editoriales).
 
 ```bash
-# 1. Instalar la extensión en VSCode
-# Extensions → buscar "Playwright Test for VS Code" → Instalar
+# 1. Instalar las dependencias de Node (si no se ha hecho)
+npm install
 
-# 2. Inicializar Playwright en el proyecto
-npm init playwright@latest
+# 2. Ejecutar la suite completa de pruebas en Chromium
+npx playwright test --project=chromium
 
-# 3. Correr los tests desde la barra lateral o terminal
-npx playwright test
-npx playwright test --ui   # Modo visual interactivo
+# 3. Ejecutar una prueba específica (ejemplo: ciclo completo de revisor)
+npx playwright test tests/e2e/reviewer-workflow.spec.js --project=chromium
+
+# 4. Abrir la interfaz interactiva (UI Mode) para ver paso a paso
+npx playwright test --ui
+
+# 5. Visualizar el reporte HTML detallado tras la ejecución
+npx playwright show-report
 ```
 
 ---

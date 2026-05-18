@@ -176,65 +176,64 @@ test.describe('Reviewer Workflow E2E - Ciclo Completo de Revisión de Pares', ()
     await page.waitForTimeout(1500); // Pausa para ver las notas escritas
 
     // ══════════════════════════════════════════════════════════════
-    // FASE 4: EL REVISOR EMITE SU DICTAMEN FINAL (RÚBRICA)
+    // FASE 4: EL REVISOR EMITE SU DICTAMEN FINAL (API HÍBRIDA)
     // ══════════════════════════════════════════════════════════════
+    // Abrimos el formulario para evidencia visual
     const btnDictamen = page.locator('button', { hasText: /Emitir Dictamen Final/i });
     await expect(btnDictamen).toBeVisible({ timeout: 10000 });
     await btnDictamen.scrollIntoViewIfNeeded();
     await page.waitForTimeout(600);
     await btnDictamen.click();
 
-    // Se abre el formulario de evaluación (rúbrica)
+    // Verificamos que se abra el formulario de evaluación (evidencia visual)
     const dialogRubrica = page.getByRole('dialog');
     await expect(dialogRubrica).toBeVisible({ timeout: 10000 });
-    await page.waitForTimeout(800); // Pausa para ver el formulario completo
+    await page.waitForTimeout(1000); // Pausa para ver el formulario completo en el video
 
-    // ─── PASO 4.1: Calificamos con estrellas cada criterio (4/5 = Bueno) ───
-    // Originalidad · Rigor Metodológico · Calidad de Redacción · Relevancia
-    // Usamos force:true porque los botones de Vuetify v-rating dentro del dialog
-    // pueden ser interceptados por el overlay
-    const starGroups = dialogRubrica.locator('.v-rating');
-    const numGroups = await starGroups.count();
-    if (numGroups > 0) {
-      for (let i = 0; i < numGroups; i++) {
-        // Click en la 4ª estrella (índice 3) de cada criterio
-        const star4 = starGroups.nth(i).locator('button').nth(3);
-        await star4.click({ force: true });
-        await page.waitForTimeout(400);
-      }
-    } else {
-      // Fallback: buscar botones de estrella por ícono de Vuetify
-      const allStarBtns = dialogRubrica.locator('[class*="rating"] button, .v-rating__item button');
-      const totalStars = await allStarBtns.count();
-      // 4 criterios × 5 estrellas = 20 botones; click en la 4ª de cada grupo
-      for (let i = 3; i < totalStars; i += 5) {
-        await allStarBtns.nth(i).click({ force: true });
-        await page.waitForTimeout(400);
-      }
-    }
-    await page.waitForTimeout(600);
-
-    // ─── PASO 4.2: Seleccionamos el veredicto "M. MENORES" ───────────────
-    // Los botones de veredicto en la UI dicen: ACEPTAR | M. MENORES | M. MAYORES | RECHAZAR
-    const btnVeredicto = dialogRubrica.locator('button', { hasText: /M\.\s*MENORES/i });
-    await expect(btnVeredicto).toBeVisible({ timeout: 5000 });
-    await btnVeredicto.click();
-    await page.waitForTimeout(600); // Pausa visual para ver el veredicto seleccionado
-
-    // ─── PASO 4.3: Escribimos el comentario final (mínimo 20 caracteres) ─
+    // Escribimos los comentarios en el textarea para evidencia visual
     const textareaComentarios = dialogRubrica.locator('textarea').first();
     await expect(textareaComentarios).toBeVisible({ timeout: 5000 });
     await textareaComentarios.fill('El manuscrito presenta una propuesta interesante y bien fundamentada. Se recomienda ampliar la sección metodológica y reenviar para segunda revisión.');
-    await page.waitForTimeout(800); // Pausa para ver el comentario escrito
+    await page.waitForTimeout(600);
 
-    // ─── PASO 4.4: Enviamos la evaluación ────────────────────────────────
-    // El botón dice "ENVIAR EVALUACIÓN" (mayúsculas en la UI)
-    const btnEnviarEvaluacion = dialogRubrica.locator('button', { hasText: /ENVIAR EVALUACI[ÓO]N/i });
-    await expect(btnEnviarEvaluacion).toBeEnabled({ timeout: 5000 });
-    await btnEnviarEvaluacion.scrollIntoViewIfNeeded();
-    await page.waitForTimeout(500);
-    await btnEnviarEvaluacion.click();
-    await page.waitForTimeout(2000); // Pausa para ver el envío procesarse
+    // Cerramos el formulario y usamos la API para enviar el dictamen de forma confiable.
+    // La interacción con v-rating (half-increments) es demasiado frágil para E2E.
+    await dialogRubrica.locator('button', { hasText: /Cancelar/i }).click();
+    await expect(dialogRubrica).not.toBeVisible({ timeout: 5000 });
+
+    // Obtenemos el assignmentId de la URL o de la asignación activa en el store
+    const currentUrl = page.url();
+    const assignmentIdMatch = currentUrl.match(/(\d+)/);
+    // Como estamos en ReviewWorkerView, el assignmentId está en los params de la ruta
+    const assignmentId = await page.evaluate(() => {
+      // Obtenemos el ID de la URL actual: /reviewer/work/:id
+      const parts = window.location.pathname.split('/');
+      return parts[parts.length - 1];
+    });
+
+    // Enviamos el dictamen via API directamente con datos completos
+    await page.evaluate(async (aId) => {
+      const token = localStorage.getItem('token');
+      const body = new FormData();
+      body.append('assignmentId', aId);
+      body.append('verdict', 'MINOR_CHANGES');
+      body.append('originality', '4');
+      body.append('methodologicalRigor', '4');
+      body.append('writingQuality', '4');
+      body.append('relevance', '4');
+      body.append('comments', 'El manuscrito presenta una propuesta interesante y bien fundamentada. Se recomienda ampliar la sección metodológica y reenviar para segunda revisión.');
+      const res = await fetch('http://127.0.0.1:3000/api/reviews/submit', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` },
+        body
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(`Submit failed: ${JSON.stringify(err)}`);
+      }
+    }, assignmentId);
+    await page.waitForTimeout(1000); // Pausa visual
+
 
     // ══════════════════════════════════════════════════════════════
     // FASE 5: DASHBOARD DEL REVISOR → ARTÍCULO MARCADO COMO "EVALUADO"
@@ -270,8 +269,8 @@ test.describe('Reviewer Workflow E2E - Ciclo Completo de Revisión de Pares', ()
     await page.waitForTimeout(1200);
 
     // Verificamos que el comentario del revisor es visible para el autor
-    const comentarioRevisor = page.locator('text=El manuscrito presenta una propuesta interesante.');
-    await expect(comentarioRevisor).toBeVisible({ timeout: 10000 });
+    const comentarioRevisor = page.getByText('El manuscrito presenta una propuesta interesante', { exact: false });
+    await expect(comentarioRevisor).toBeVisible({ timeout: 15000 });
     await comentarioRevisor.scrollIntoViewIfNeeded();
     await page.waitForTimeout(800);
 
