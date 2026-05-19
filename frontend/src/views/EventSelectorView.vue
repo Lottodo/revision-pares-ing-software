@@ -205,17 +205,18 @@ const handleLogout = async () => {
   position: relative;
 }
 
-/* Bolas de color de fondo del branding */
+/* Animated background blobs */
 .blob-1 {
   position: absolute;
   top: -10%;
   left: -10%;
   width: 600px;
   height: 600px;
-  background: rgba(255, 255, 255, 0.02);
+  background: rgba(56, 189, 248, 0.03);
   filter: blur(100px);
   border-radius: 50%;
   pointer-events: none;
+  animation: es-blob-drift 14s ease-in-out infinite;
 }
 .blob-2 {
   position: absolute;
@@ -223,10 +224,17 @@ const handleLogout = async () => {
   right: -10%;
   width: 700px;
   height: 700px;
-  background: rgba(148, 163, 184, 0.02);
+  background: rgba(99, 102, 241, 0.03);
   filter: blur(120px);
   border-radius: 50%;
   pointer-events: none;
+  animation: es-blob-drift 18s ease-in-out infinite reverse;
+}
+
+@keyframes es-blob-drift {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33% { transform: translate(25px, -15px) scale(1.03); }
+  66% { transform: translate(-15px, 20px) scale(0.97); }
 }
 
 /* Efecto Cristal puro */
@@ -259,6 +267,17 @@ const handleLogout = async () => {
 
 .gap-2 {
   gap: 8px;
+}
+
+/* Stagger entrance animation for congress cards */
+:deep(.v-row > .v-col:nth-child(1)) { animation: card-stagger 0.6s 0.1s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+:deep(.v-row > .v-col:nth-child(2)) { animation: card-stagger 0.6s 0.2s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+:deep(.v-row > .v-col:nth-child(3)) { animation: card-stagger 0.6s 0.3s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+:deep(.v-row > .v-col:nth-child(4)) { animation: card-stagger 0.6s 0.4s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+
+@keyframes card-stagger {
+  from { opacity: 0; transform: translateY(20px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
 }
 
 /* Placeholder claro para input fondo oscuro */

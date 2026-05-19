@@ -2,17 +2,55 @@
 <html lang="es">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+
+    <!-- PWA Core Meta -->
     <meta name="theme-color" content="#1A2B4C" />
+    <meta name="description" content="Plataforma de revisión por pares para congresos académicos — StudioPeer" />
+
+    <!-- Apple PWA Meta -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="StudioPeer" />
+
+    <!-- Android PWA -->
+    <meta name="mobile-web-app-capable" content="yes" />
+
+    <!-- Microsoft Tile -->
+    <meta name="msapplication-TileColor" content="#1A2B4C" />
+    <meta name="msapplication-TileImage" content="/icons/pwa-192x192.png" />
+
+    <!-- Icons -->
     <link rel="icon" type="image/svg+xml" href="/icon.svg" />
-    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/icons/pwa-192x192.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+
+    <!-- Manifest -->
     <link rel="manifest" href="/manifest.webmanifest" />
-    <title>Sistema de Revisión de Congresos</title>
-    <script type="module" crossorigin src="/assets/index-oy6OtEfm.js"></script>
-    <link rel="stylesheet" crossorigin href="/assets/index-oppGFy2G.css">
+
+    <!-- Google Fonts: Inter (Premium typography) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+
+    <title>StudioPeer — Revisión Académica</title>
+
+    <style>
+      /* Critical CSS — prevents FOUC on load */
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      body {
+        font-family: 'Inter', system-ui, -apple-system, sans-serif;
+        background: #0F172A;
+        color: #F8FAFC;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+      }
+      #app { min-height: 100vh; }
+    </style>
+    <script type="module" crossorigin src="/assets/index-SUakv0hi.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-9OwKZVJD.css">
   <link rel="manifest" href="/manifest.webmanifest"><script id="vite-plugin-pwa:register-sw" src="/registerSW.js"></script></head>
   <body>
-    <div id="app"></div>
-
+    <div id="app"></div>
   </body>
 </html>
