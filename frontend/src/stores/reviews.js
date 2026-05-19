@@ -2,6 +2,8 @@
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
 import { reviewsApi } from '../api/index.js';
+import { getAll, replaceAll, put, enqueueSync } from '../utils/offlineDb.js';
+import { refreshCount } from '../utils/syncManager.js';
 
 export const useReviewsStore = defineStore('reviews', () => {
   const assignments     = ref([]); 
@@ -13,14 +15,31 @@ export const useReviewsStore = defineStore('reviews', () => {
   const clearError = () => { error.value = null; };
 
   // ── Revisor ──────────────────────────────────────────────────
+
+  /**
+   * Fetch my assignments — Network-first with IndexedDB fallback.
+   */
   const fetchMyAssignments = async () => {
     if (assignments.value.length === 0) loading.value = true;
     error.value = null;
     try {
       const { data } = await reviewsApi.myAssignments();
       assignments.value = data.data;
+      // Cache for offline
+      await replaceAll('cachedAssignments', data.data).catch(() => {});
     } catch (e) {
-      error.value = e.response?.data?.error || 'Error al cargar asignaciones';
+      // Network failed — try IndexedDB cache
+      try {
+        const cached = await getAll('cachedAssignments');
+        if (cached.length) {
+          assignments.value = cached;
+          console.log('[Reviews] Loaded from offline cache:', cached.length, 'assignments');
+        } else {
+          error.value = 'Sin conexión y sin datos en caché';
+        }
+      } catch {
+        error.value = e.response?.data?.error || 'Error al cargar asignaciones';
+      }
     } finally { loading.value = false; }
   };
 
@@ -38,8 +57,7 @@ export const useReviewsStore = defineStore('reviews', () => {
   };
 
   /**
-   * NUEVO: Guardar borrador
-   * No cambia el estado de la asignación, solo persiste los datos.
+   * Save draft — works offline by saving to IndexedDB and queuing for sync.
    */
   const saveDraft = async (formData) => {
     error.value = null;
@@ -47,19 +65,46 @@ export const useReviewsStore = defineStore('reviews', () => {
       const { data } = await reviewsApi.saveDraft(formData);
       return data.data;
     } catch (e) {
+      // If it's a network error, save draft locally
+      if (!e.response) {
+        const draftData = formData instanceof FormData
+          ? Object.fromEntries(formData.entries())
+          : formData;
+
+        await put('draftReviews', {
+          assignmentId: parseInt(draftData.assignmentId),
+          ...draftData,
+          savedAt: new Date().toISOString(),
+          pendingSync: true,
+        });
+
+        // Queue the sync operation (JSON only, not multipart)
+        if (!(formData instanceof FormData)) {
+          await enqueueSync({
+            type: 'saveDraft',
+            method: 'POST',
+            url: '/reviews/draft',
+            data: draftData,
+          });
+          await refreshCount();
+        }
+
+        console.log('[Reviews] Draft saved offline for assignment:', draftData.assignmentId);
+        return draftData;
+      }
       error.value = e.response?.data?.error || 'Error al guardar borrador';
       throw e;
     }
   };
 
+  /**
+   * Submit final review — queued for sync if offline.
+   */
   const submitReview = async (reviewData) => {
     loading.value = true; error.value = null;
     try {
-      // Usamos reviewsApi.submit (asegúrate que en tu api/index.js se llame así o submitReview)
       const { data } = await reviewsApi.submit(reviewData);
       
-      // Marcar la asignación como evaluada en el store
-      // Si mandaste FormData, el ID viene dentro, hay que extraerlo
       const assignmentId = reviewData instanceof FormData 
         ? parseInt(reviewData.get('assignmentId')) 
         : reviewData.assignmentId;
@@ -69,6 +114,24 @@ export const useReviewsStore = defineStore('reviews', () => {
       
       return data.data;
     } catch (e) {
+      // Queue for offline if network error and it's JSON data
+      if (!e.response && !(reviewData instanceof FormData)) {
+        await enqueueSync({
+          type: 'submitReview',
+          method: 'POST',
+          url: '/reviews/submit',
+          data: reviewData,
+        });
+        await refreshCount();
+
+        // Optimistic update
+        const assignmentId = reviewData.assignmentId;
+        const idx = assignments.value.findIndex((a) => a.id === assignmentId);
+        if (idx !== -1) assignments.value[idx].status = 'EVALUATED';
+
+        console.log('[Reviews] Review queued for sync:', assignmentId);
+        return reviewData;
+      }
       error.value = e.response?.data?.error || 'Error al enviar evaluación';
       throw e;
     } finally { loading.value = false; }

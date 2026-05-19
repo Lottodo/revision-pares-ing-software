@@ -172,19 +172,26 @@ const handleLogin = async () => {
 .z-10 {
   z-index: 10;
   position: relative;
+  animation: card-enter 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
 }
 
-/* Bolas sutiles para evitar pantalla plana vacía */
+@keyframes card-enter {
+  from { opacity: 0; transform: translateY(30px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* Animated decorative blobs */
 .blob-1 {
   position: absolute;
   top: -10%;
   left: -10%;
   width: 700px;
   height: 700px;
-  background: rgba(255, 255, 255, 0.02);
+  background: rgba(56, 189, 248, 0.04);
   filter: blur(120px);
   border-radius: 50%;
   pointer-events: none;
+  animation: blob-drift 12s ease-in-out infinite;
 }
 .blob-2 {
   position: absolute;
@@ -192,10 +199,17 @@ const handleLogin = async () => {
   right: -10%;
   width: 800px;
   height: 800px;
-  background: rgba(148, 163, 184, 0.03);
+  background: rgba(99, 102, 241, 0.04);
   filter: blur(140px);
   border-radius: 50%;
   pointer-events: none;
+  animation: blob-drift 15s ease-in-out infinite reverse;
+}
+
+@keyframes blob-drift {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33% { transform: translate(30px, -20px) scale(1.05); }
+  66% { transform: translate(-20px, 30px) scale(0.95); }
 }
 
 /* Efecto Panel Cristalino */
@@ -210,10 +224,25 @@ const handleLogin = async () => {
   border-color: rgba(255,255,255,0.1) !important;
 }
 
+/* Stagger animations for form fields */
+:deep(.v-form > div:nth-child(1)) { animation: field-enter 0.5s 0.2s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+:deep(.v-form > div:nth-child(2)) { animation: field-enter 0.5s 0.35s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+:deep(.v-form > div:nth-child(3)) { animation: field-enter 0.5s 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+:deep(.v-form > .v-btn:first-of-type) { animation: field-enter 0.5s 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+
+@keyframes field-enter {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
 /* Sobrescribir input de Vuetify para inputs en el panel blanco */
 :deep(.v-field--variant-outlined) {
   border-radius: 8px;
   background-color: transparent;
+  transition: box-shadow 0.3s ease;
+}
+:deep(.v-field--variant-outlined:focus-within) {
+  box-shadow: 0 0 0 3px rgba(15, 23, 42, 0.1);
 }
 :deep(input::placeholder) {
   color: rgba(0, 0, 0, 0.4) !important;

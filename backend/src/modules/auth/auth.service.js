@@ -109,7 +109,13 @@ export const register = async ({ username, email, password, accessCode }) => {
  */
 export const login = async ({ username, password, eventId }) => {
   const user = await prisma.user.findFirst({
-    where: { username, active: true },
+    where: {
+      OR: [
+        { username: username.trim() },
+        { email: username.trim().toLowerCase() }
+      ],
+      active: true,
+    },
   });
 
   if (!user) {
