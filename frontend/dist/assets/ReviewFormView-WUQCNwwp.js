@@ -1,0 +1,1 @@
+import{_ as r,c as o,a as n,o as s}from"./index-SUakv0hi.js";const t={};function a(c,e){return s(),o("div",null,[...e[0]||(e[0]=[n("h1",null,"Formulario de revisión",-1)])])}const l=r(t,[["render",a]]);export{l as default};
