@@ -80,7 +80,9 @@
 import { ref, onMounted, onUnmounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useReviewsStore } from '../stores/reviews.js';
-import { papersApi, reviewsApi } from '../api/index.js'; // 1. Agregamos reviewsApi
+import { papersApi, reviewsApi } from '../api/index.js';
+import { useNetworkStatus } from '../composables/useNetworkStatus.js';
+import { put as putIdb, getById as getIdbById } from '../utils/offlineDb.js';
 import ReviewFormDialog from '../components/ReviewFormDialog.vue';
 import WebViewer from '@pdftron/webviewer';
 
@@ -99,10 +101,8 @@ const isExtractingPdf = ref(false);
 
 const notes = ref('');
 const lastSaved = ref('');
-const isOnline = ref(navigator.onLine);
+const { isOnline, pendingSyncCount } = useNetworkStatus();
 const showRubric = ref(false);
-
-const checkOnlineStatus = () => { isOnline.value = navigator.onLine; };
 
 const loadLocalNotes = () => {
   const saved = localStorage.getItem(`offline_notes_${assignmentId}`);
@@ -112,8 +112,14 @@ const loadLocalNotes = () => {
   }
 };
 
-const saveNotesLocally = () => {
+const saveNotesLocally = async () => {
   localStorage.setItem(`offline_notes_${assignmentId}`, notes.value);
+  // Also save to IndexedDB for robustness
+  await putIdb('draftReviews', {
+    assignmentId,
+    notes: notes.value,
+    savedAt: new Date().toISOString(),
+  }).catch(() => {});
   lastSaved.value = new Date().toLocaleTimeString();
 };
 
@@ -152,10 +158,18 @@ const onReviewSubmitted = () => {
 };
 
 onMounted(async () => {
-  window.addEventListener('online', checkOnlineStatus);
-  window.addEventListener('offline', checkOnlineStatus);
-
-  // Cargar asignación actual
+  // Load notes from localStorage first, then try IndexedDB
+  const localNotes = localStorage.getItem(`offline_notes_${assignmentId}`);
+  if (localNotes) {
+    notes.value = localNotes;
+    lastSaved.value = 'Recuperado de sesión anterior';
+  } else {
+    const idbDraft = await getIdbById('draftReviews', assignmentId).catch(() => null);
+    if (idbDraft?.notes) {
+      notes.value = idbDraft.notes;
+      lastSaved.value = 'Recuperado de IndexedDB';
+    }
+  }
   if (!store.assignments.length) {
     await store.fetchMyAssignments();
   }
@@ -204,8 +218,6 @@ onMounted(async () => {
 });
 
 onUnmounted(() => {
-  window.removeEventListener('online', checkOnlineStatus);
-  window.removeEventListener('offline', checkOnlineStatus);
   if (pdfBlobUrl.value) {
     window.URL.revokeObjectURL(pdfBlobUrl.value);
   }
