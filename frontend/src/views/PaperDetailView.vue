@@ -114,7 +114,7 @@ const loadData = async () => {
   try {
     const [pRes, rRes, hRes] = await Promise.all([
       papersApi.getById(route.params.id),
-      reviewsApi.listByPaper(route.params.id), // El backend ya filtra isDraft: false
+      reviewsApi.listByPaper(route.params.id),
       papersApi.getHistory(route.params.id).catch(() => ({ data: { data: [] } }))
     ]);
     paper.value = pRes.data.data;

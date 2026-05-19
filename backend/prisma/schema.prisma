@@ -1,5 +1,5 @@
 // prisma/schema.prisma
-// Sistema de Revisión de Congresos — PWA Doble Ciego
+// Sistema de Revisin de Congresos  PWA Doble Ciego
 // ORM: Prisma | DB: MySQL 8
 
 generator client {
@@ -11,11 +11,12 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// ─────────────────────────────────────────
+// -----------------------------------------
 // ENUMS
-// ─────────────────────────────────────────
+// -----------------------------------------
 
 enum Role {
+  ATTENDEE
   AUTHOR
   REVIEWER
   EDITOR
@@ -53,35 +54,36 @@ enum RequestStatus {
   REJECTED
 }
 
-// ─────────────────────────────────────────
-// USUARIOS — identidad global del sistema
-// ─────────────────────────────────────────
+// -----------------------------------------
+// USUARIOS  identidad global del sistema
+// -----------------------------------------
 model User {
-  id           Int      @id @default(autoincrement())
-  username     String   @unique @db.VarChar(50)
-  email        String   @unique @db.VarChar(255)
-  passwordHash String   @db.VarChar(255)
-  active       Boolean  @default(true)
-  isGlobalAdmin Boolean @default(false)
-  currentSessionId String? // Para restricción de sesión única (UUID)
-  specialty    String?  @db.VarChar(100)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id               Int      @id @default(autoincrement())
+  username         String   @unique @db.VarChar(50)
+  email            String   @unique @db.VarChar(255)
+  passwordHash     String   @db.VarChar(255)
+  active           Boolean  @default(true)
+  isGlobalAdmin    Boolean  @default(false)
+  currentSessionId String? // Para restriccin de sesin nica (UUID)
+  specialty        String?  @db.VarChar(100)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
   // Relaciones
-  eventRoles   EventUser[]
+  eventRoles    EventUser[]
   eventRequests EventRequest[]
-  papers       Paper[]        @relation("AuthorPapers")
-  assignments  Assignment[]   @relation("ReviewerAssignments")
-  reviews      Review[]
-  historyItems PaperHistory[]
+  invitations   Invitation[]
+  papers        Paper[]        @relation("AuthorPapers")
+  assignments   Assignment[]   @relation("ReviewerAssignments")
+  reviews       Review[]
+  historyItems  PaperHistory[]
 
   @@map("users")
 }
 
-// ─────────────────────────────────────────
-// EVENTOS — cada congreso es independiente
-// ─────────────────────────────────────────
+// -----------------------------------------
+// EVENTOS  cada congreso es independiente
+// -----------------------------------------
 model Event {
   id          Int       @id @default(autoincrement())
   slug        String    @unique @db.VarChar(100)
@@ -90,22 +92,25 @@ model Event {
   startDate   DateTime?
   endDate     DateTime?
   active      Boolean   @default(true)
+  isPublic    Boolean   @default(true) // true = aparece en listado pblico
+  accessCode  String?   @unique @db.VarChar(50) // cdigo privado para ATTENDEE
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
   // Relaciones
-  members EventUser[]
-  papers  Paper[]
-  requests EventRequest[]
+  members     EventUser[]
+  papers      Paper[]
+  requests    EventRequest[]
+  invitations Invitation[]
 
   @@map("events")
 }
 
-// ─────────────────────────────────────────
-// ROLES POR EVENTO — tabla pivote
+// -----------------------------------------
+// ROLES POR EVENTO  tabla pivote
 // Un mismo usuario puede tener roles distintos en distintos eventos.
-// Un usuario puede tener MÚLTIPLES roles en el mismo evento.
-// ─────────────────────────────────────────
+// Un usuario puede tener MLTIPLES roles en el mismo evento.
+// -----------------------------------------
 model EventUser {
   id        Int      @id @default(autoincrement())
   userId    Int
@@ -121,16 +126,17 @@ model EventUser {
   @@map("event_users")
 }
 
-// ─────────────────────────────────────────
+// -----------------------------------------
 // SOLICITUDES DE ACCESO A EVENTOS
-// ─────────────────────────────────────────
+// -----------------------------------------
 model EventRequest {
-  id        Int      @id @default(autoincrement())
+  id        Int           @id @default(autoincrement())
   userId    Int
   eventId   Int
   status    RequestStatus @default(PENDING)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  message   String?       @db.VarChar(500) // Mensaje opcional del solicitante
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
 
   user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
   event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
@@ -139,9 +145,31 @@ model EventRequest {
   @@map("event_requests")
 }
 
-// ─────────────────────────────────────────
-// ARTÍCULOS — aislados por evento
-// ─────────────────────────────────────────
+// -----------------------------------------
+// INVITACIONES DIRECTAS  Admin invita a un rol especfico
+// -----------------------------------------
+model Invitation {
+  id        Int           @id @default(autoincrement())
+  eventId   Int
+  // Invitar por email (puede no estar registrado an) o por userId si ya existe
+  email     String?       @db.VarChar(255)
+  userId    Int?
+  role      Role // El rol que recibir al aceptar
+  status    RequestStatus @default(PENDING) // PENDING | APPROVED(acept) | REJECTED(rechaz)
+  token     String        @unique @db.VarChar(100) // Token nico para el enlace de invitacin
+  expiresAt DateTime // Fecha de expiracin del enlace
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user  User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@map("invitations")
+}
+
+// -----------------------------------------
+// ARTCULOS  aislados por evento
+// -----------------------------------------
 model Paper {
   id          Int         @id @default(autoincrement())
   eventId     Int
@@ -166,13 +194,13 @@ model Paper {
   @@map("papers")
 }
 
-// ─────────────────────────────────────────
-// VERSIONES DE ARTÍCULO
-// ─────────────────────────────────────────
+// -----------------------------------------
+// VERSIONES DE ARTCULO
+// -----------------------------------------
 model PaperVersion {
   id        Int      @id @default(autoincrement())
   paperId   Int
-  version   Int      // 1, 2, 3...
+  version   Int // 1, 2, 3...
   url       String   @db.VarChar(500)
   note      String?  @db.VarChar(500)
   createdAt DateTime @default(now())
@@ -183,9 +211,9 @@ model PaperVersion {
   @@map("paper_versions")
 }
 
-// ─────────────────────────────────────────
-// ASIGNACIONES — revisor asignado a artículo
-// ─────────────────────────────────────────
+// -----------------------------------------
+// ASIGNACIONES  revisor asignado a artculo
+// -----------------------------------------
 model Assignment {
   id         Int              @id @default(autoincrement())
   paperId    Int
@@ -199,15 +227,15 @@ model Assignment {
   reviewer User    @relation("ReviewerAssignments", fields: [reviewerId], references: [id])
   review   Review?
 
-  // Un revisor no puede estar asignado dos veces al mismo artículo
+  // Un revisor no puede estar asignado dos veces al mismo artculo
   @@unique([paperId, reviewerId])
   @@index([reviewerId])
   @@map("assignments")
 }
 
-// ─────────────────────────────────────────
-// EVALUACIONES — con rúbrica completa
-// ─────────────────────────────────────────
+// -----------------------------------------
+// EVALUACIONES  con rbrica completa
+// -----------------------------------------
 model Review {
   id                  Int      @id @default(autoincrement())
   paperId             Int
@@ -215,10 +243,10 @@ model Review {
   assignmentId        Int      @unique
   verdict             Verdict?
   // CAMBIO: De Int a Float para permitir decimales (ej. 4.5)
-  originality         Float    
-  methodologicalRigor Float    
-  writingQuality      Float    
-  relevance           Float    
+  originality         Float
+  methodologicalRigor Float
+  writingQuality      Float
+  relevance           Float
   comments            String?  @db.Text
   annotatedPdfUrl     String?  @db.VarChar(500)
   isDraft             Boolean  @default(false) // <--- NUEVO CAMPO
@@ -232,9 +260,9 @@ model Review {
   @@map("reviews")
 }
 
-// ─────────────────────────────────────────
-// HISTORIAL — log inmutable de eventos
-// ─────────────────────────────────────────
+// -----------------------------------------
+// HISTORIAL  log inmutable de eventos
+// -----------------------------------------
 model PaperHistory {
   id        Int      @id @default(autoincrement())
   paperId   Int
@@ -243,9 +271,10 @@ model PaperHistory {
   detail    String?  @db.VarChar(500)
   createdAt DateTime @default(now())
 
-  paper Paper  @relation(fields: [paperId], references: [id], onDelete: Cascade)
-  user  User?  @relation(fields: [userId], references: [id])
+  paper Paper @relation(fields: [paperId], references: [id], onDelete: Cascade)
+  user  User? @relation(fields: [userId], references: [id])
 
   @@index([paperId])
   @@map("paper_history")
 }
+

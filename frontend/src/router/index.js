@@ -14,6 +14,7 @@ const AdminView           = () => import('../views/AdminView.vue');
 const PaperDetailView     = () => import('../views/PaperDetailView.vue');
 const ReviewFormView      = () => import('../views/ReviewFormView.vue');
 const NotFoundView        = () => import('../views/NotFoundView.vue');
+const AttendeeView        = () => import('../views/AttendeeView.vue');
 
 const routes = [
   { path: '/login',          name: 'login',          component: LoginView,          meta: { guest: true } },
@@ -36,6 +37,7 @@ const routes = [
   { path: '/admin',          name: 'admin',          component: AdminView,          meta: { requiresAuth: true, roles: ['ADMIN'] } },
   { path: '/papers/:id',     name: 'paper-detail',   component: PaperDetailView,    meta: { requiresAuth: true } },
   { path: '/review/:assignmentId', name: 'review-form', component: ReviewFormView,  meta: { requiresAuth: true, roles: ['REVIEWER'] } },
+  { path: '/attendee',       name: 'attendee',       component: AttendeeView,       meta: { requiresAuth: true, roles: ['ATTENDEE'] } },
   { path: '/',               redirect: () => defaultRedirect() },
   { path: '/:pathMatch(.*)*', name: 'not-found',     component: NotFoundView },
 ];
@@ -47,7 +49,8 @@ const defaultRedirect = () => {
   if (auth.isAdmin) return '/admin';
   if (auth.isEditor) return '/editor';
   if (auth.isReviewer) return '/reviewer';
-  return '/author';
+  if (auth.isAuthor) return '/author';
+  return '/attendee';
 };
 
 const router = createRouter({

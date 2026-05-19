@@ -1,5 +1,11 @@
 <template>
   <v-app class="bg-background">
+    <!-- ── PWA Shell Components ──────────────────────────────── -->
+    <SplashScreen />
+    <OfflineBanner />
+    <InstallPWABanner />
+    <UpdateNotification />
+
     <!-- Cargar interfaz corporativa solo si hay usuario Y NO está en la sala de selección inmersiva -->
     <template v-if="auth.isAuthenticated && $route.name !== 'select-event'">
       
@@ -262,6 +268,10 @@ import { useAuthStore } from './stores/auth.js';
 import { useDisplay, useTheme } from 'vuetify';
 
 import EventSelectorDialog from './components/EventSelectorDialog.vue';
+import OfflineBanner from './components/OfflineBanner.vue';
+import InstallPWABanner from './components/InstallPWABanner.vue';
+import SplashScreen from './components/SplashScreen.vue';
+import UpdateNotification from './components/UpdateNotification.vue';
 
 const auth    = useAuthStore();
 const router  = useRouter();

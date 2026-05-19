@@ -85,29 +85,51 @@ export const listByEvent = async (eventId, user) => {
 export const getById = async (id, eventId, user) => {
   const { id: userId, roles = [] } = user;
   const isEditor = roles.includes('EDITOR') || roles.includes('ADMIN');
+  const isAuthor = roles.includes('AUTHOR');
   const isReviewer = roles.includes('REVIEWER') && !isEditor;
 
-  const paper = await prisma.paper.findFirst({
+  // Siempre obtenemos el authorId para poder determinar la propiedad del artículo,
+  // independientemente del rol. Esto es clave para usuarios con doble rol AUTHOR+REVIEWER.
+  const paperWithAuthor = await prisma.paper.findFirst({
     where: { id, eventId },
-    select: isReviewer ? BLIND_SELECT : (isEditor ? FULL_SELECT : AUTHOR_SELECT),
+    select: { authorId: true },
   });
 
-  if (!paper) { const e = new Error('Artículo no encontrado en este evento.'); e.status = 404; throw e; }
-
-  // Author solo puede ver el suyo
-  if (!isEditor && !isReviewer && paper.authorId !== userId) {
-    const e = new Error('No tienes acceso a este artículo.'); e.status = 403; throw e;
+  if (!paperWithAuthor) {
+    const e = new Error('Artículo no encontrado en este evento.'); e.status = 404; throw e;
   }
 
-  // Reviewer: verificar que esté asignado
+  const isOwner = paperWithAuthor.authorId === userId;
+
+  // CASO 1: Editor o Admin — acceso completo a cualquier artículo
+  if (isEditor) {
+    return prisma.paper.findFirst({ where: { id, eventId }, select: FULL_SELECT });
+  }
+
+  // CASO 2: El usuario es el AUTOR del artículo (incluso si también tiene rol REVIEWER)
+  // Prioridad: la propiedad del artículo siempre gana sobre el rol de Revisor.
+  if (isOwner) {
+    return prisma.paper.findFirst({ where: { id, eventId }, select: AUTHOR_SELECT });
+  }
+
+  // CASO 3: Usuario con rol Revisor que NO es el autor → verificar asignación
   if (isReviewer) {
     const assigned = await prisma.assignment.findFirst({
       where: { paperId: id, reviewerId: userId, status: { not: 'CANCELLED' } },
     });
-    if (!assigned) { const e = new Error('No tienes asignación para este artículo.'); e.status = 403; throw e; }
+    if (!assigned) {
+      const e = new Error('No tienes asignación para este artículo.'); e.status = 403; throw e;
+    }
+    // Acceso ciego (sin datos del autor)
+    return prisma.paper.findFirst({ where: { id, eventId }, select: BLIND_SELECT });
   }
 
-  return paper;
+  // CASO 4: Autor intentando ver artículo ajeno
+  if (isAuthor) {
+    const e = new Error('No tienes acceso a este artículo.'); e.status = 403; throw e;
+  }
+
+  const e = new Error('No tienes acceso a este artículo.'); e.status = 403; throw e;
 };
 
 /**
@@ -205,6 +227,9 @@ export const updateStatus = async (paperId, eventId, newStatus, editorId, editor
  * - EDITOR/ADMIN: cualquiera
  * - REVIEWER: no tiene acceso
  */
+// Eventos de historial que revelan identidad del revisor — ocultos al Autor (doble ciego)
+const BLIND_HISTORY_EVENTS = ['Revisor asignado', 'Revisor removido', 'En revisión'];
+
 export const getHistory = async (paperId, eventId, user) => {
   const { id: userId, roles = [] } = user;
   const isEditor = roles.includes('EDITOR') || roles.includes('ADMIN');
@@ -212,15 +237,22 @@ export const getHistory = async (paperId, eventId, user) => {
   const paper = await prisma.paper.findFirst({ where: { id: paperId, eventId } });
   if (!paper) { const e = new Error('Artículo no encontrado.'); e.status = 404; throw e; }
 
+  // El Autor puede ver el historial de sus propios artículos.
+  // Si el usuario tiene doble rol AUTHOR+REVIEWER, la propiedad del artículo tiene prioridad.
   if (!isEditor && paper.authorId !== userId) {
     const e = new Error('No tienes permiso para ver este historial.'); e.status = 403; throw e;
   }
 
-  return prisma.paperHistory.findMany({
+  const allHistory = await prisma.paperHistory.findMany({
     where: { paperId },
     orderBy: { createdAt: 'asc' },
     select: { id: true, event: true, detail: true, createdAt: true },
   });
+
+  // El Editor/Admin ve todo. El Autor solo ve entradas que NO revelen identidad de revisores.
+  if (isEditor) return allHistory;
+
+  return allHistory.filter(h => !BLIND_HISTORY_EVENTS.includes(h.event));
 };
 
 /**

@@ -15,15 +15,30 @@
             :rules="[v => !!v || 'Requerido', v => v?.length >= 3 || 'Mínimo 3 caracteres']"
             class="mb-3"
           />
-          <v-text-field
-            v-model="form.slug"
-            label="Slug (identificador URL) *"
-            variant="outlined"
-            hint="Solo minúsculas, números y guiones. Ej: congreso-ia-2025"
-            persistent-hint
-            :rules="[v => !!v || 'Requerido', v => /^[a-z0-9-]+$/.test(v) || 'Solo minúsculas, números y guiones']"
-            class="mb-3"
-          />
+            <v-text-field
+              v-model="form.slug"
+              label="Slug (identificador URL) *"
+              variant="outlined"
+              hint="Solo minúsculas, números y guiones. Ej: congreso-ia-2025"
+              persistent-hint
+              :rules="[v => !!v || 'Requerido', v => /^[a-z0-9-]+$/.test(v) || 'Solo minúsculas, números y guiones']"
+              class="mb-3"
+            />
+            <v-switch
+              v-model="form.isPublic"
+              label="Congreso Público (Cualquiera puede solicitar ser autor)"
+              color="primary"
+              hide-details
+              class="mb-1"
+            ></v-switch>
+            <v-text-field
+              v-model="form.accessCode"
+              label="Código de Acceso Privado (Opcional)"
+              variant="outlined"
+              hint="Si el congreso es privado, los usuarios necesitarán este código para entrar como Asistente."
+              persistent-hint
+              class="mb-3"
+            />
           <v-textarea
             v-model="form.description"
             label="Descripción"
@@ -77,7 +92,7 @@ const loading = ref(false);
 const error   = ref('');
 const isEdit  = computed(() => !!props.event?.id);
 
-const form = reactive({ name: '', slug: '', description: '', startDate: '', endDate: '' });
+const form = reactive({ name: '', slug: '', description: '', startDate: '', endDate: '', isPublic: true, accessCode: '' });
 
 watch(() => props.event, (ev) => {
   if (ev) {
@@ -86,8 +101,10 @@ watch(() => props.event, (ev) => {
     form.description = ev.description || '';
     form.startDate   = ev.startDate ? ev.startDate.split('T')[0] : '';
     form.endDate     = ev.endDate   ? ev.endDate.split('T')[0]   : '';
+    form.isPublic    = ev.isPublic !== undefined ? ev.isPublic : true;
+    form.accessCode  = ev.accessCode || '';
   } else {
-    Object.assign(form, { name: '', slug: '', description: '', startDate: '', endDate: '' });
+    Object.assign(form, { name: '', slug: '', description: '', startDate: '', endDate: '', isPublic: true, accessCode: '' });
   }
 });
 
@@ -107,6 +124,8 @@ const save = async () => {
       description: form.description || undefined,
       startDate: form.startDate || undefined,
       endDate:   form.endDate   || undefined,
+      isPublic:  form.isPublic,
+      accessCode: form.accessCode || undefined,
     };
     if (isEdit.value) {
       await eventsApi.update(props.event.id, payload);

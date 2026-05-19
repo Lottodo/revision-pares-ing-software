@@ -1,6 +1,7 @@
 // backend/scripts/seed.js
 
-import { PrismaClient } from '@prisma/client';
+import pkg from '@prisma/client';
+const { PrismaClient } = pkg;
 import bcrypt from 'bcryptjs';
 import fs from 'node:fs';
 import path from 'node:path';

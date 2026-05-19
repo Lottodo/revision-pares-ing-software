@@ -15,14 +15,27 @@ import usersRoutes   from './modules/users/users.routes.js';
 import eventsRoutes  from './modules/events/events.routes.js';
 import papersRoutes  from './modules/papers/papers.routes.js';
 import reviewsRoutes from './modules/reviews/reviews.routes.js';
+import invitationsRoutes from './modules/invitations/invitations.routes.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const app = express();
 
 // ── Middlewares globales ──────────────────────────────────────
+const allowedOrigins = [
+  env.frontendUrl,
+  'http://localhost:5173',
+  'http://127.0.0.1:5173',
+];
+
 app.use(cors({
-  origin: env.frontendUrl,
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Bloqueado por CORS: Origen no permitido'));
+    }
+  },
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true,
@@ -43,8 +56,9 @@ app.get('/api/health', (_req, res) => {
 app.use('/api/auth',    authRoutes);
 app.use('/api/users',   usersRoutes);
 app.use('/api/events',  eventsRoutes);
-app.use('/api/papers',  papersRoutes);
-app.use('/api/reviews', reviewsRoutes);
+app.use('/api/papers',      papersRoutes);
+app.use('/api/reviews',     reviewsRoutes);
+app.use('/api/invitations', invitationsRoutes);
 
 // ── 404 para rutas de API desconocidas ────────────────────────
 app.use('/api/*', (_req, res) => {

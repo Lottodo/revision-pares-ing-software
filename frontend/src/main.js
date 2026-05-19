@@ -9,6 +9,7 @@ import 'vuetify/styles';
 
 import App from './App.vue';
 import router from './router/index.js';
+import { initSyncManager } from './utils/syncManager.js';
 
 const storedTheme = localStorage.getItem('studiopeer-theme') || 'light';
 
@@ -75,3 +76,6 @@ app.use(createPinia());
 app.use(router);
 app.use(vuetify);
 app.mount('#app');
+
+// ── Initialize PWA sync manager ──────────────────────────────
+initSyncManager();

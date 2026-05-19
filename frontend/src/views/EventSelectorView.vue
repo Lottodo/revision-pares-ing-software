@@ -41,7 +41,30 @@
 
             <v-progress-linear v-if="loading" indeterminate color="white" class="mb-4 rounded-pill" height="6"></v-progress-linear>
 
-            <h3 class="text-subtitle-1 font-weight-bold mb-3">Tus Congresos Inscritos</h3>
+            <!-- ── Invitaciones Pendientes ── -->
+            <div v-if="invitations.length > 0" class="mb-8">
+              <h3 class="text-subtitle-1 font-weight-bold mb-3 text-warning">
+                <v-icon start color="warning">mdi-email-alert</v-icon> Tienes Invitaciones Pendientes
+              </h3>
+              <v-row>
+                <v-col v-for="inv in invitations" :key="inv.id" cols="12" sm="6">
+                  <v-card class="glass-card rounded-xl border-warning pa-4" elevation="0">
+                    <div class="d-flex align-center justify-space-between mb-2">
+                      <h4 class="text-white text-body-1 font-weight-bold">{{ inv.event.name }}</h4>
+                      <v-chip size="x-small" :color="roleColor(inv.role)" class="font-weight-bold">{{ roleLabel(inv.role) }}</v-chip>
+                    </div>
+                    <div class="d-flex gap-2 mt-4">
+                      <v-btn flex-grow-1 color="success" variant="flat" size="small" rounded="lg" @click="respondInvitation(inv.token, true)">Aceptar</v-btn>
+                      <v-btn flex-grow-1 color="error" variant="tonal" size="small" rounded="lg" @click="respondInvitation(inv.token, false)">Rechazar</v-btn>
+                    </div>
+                  </v-card>
+                </v-col>
+              </v-row>
+              <v-divider class="my-6 border-opacity-25" color="white"></v-divider>
+            </div>
+
+            <!-- ── Congresos Inscritos ── -->
+            <h3 class="text-subtitle-1 font-weight-bold mb-3 text-white">Tus Congresos Inscritos</h3>
             <v-row v-if="auth.userEvents.length">
               <v-col v-for="ev in auth.userEvents" :key="ev.event.id" cols="12" sm="6">
                 <!-- Tarjeta Glassmorphism -->
@@ -126,17 +149,44 @@
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '../stores/auth.js';
-import { eventsApi } from '../api/index.js';
+import { eventsApi, invitationsApi } from '../api/index.js';
 
 const auth     = useAuthStore();
 const router   = useRouter();
 const loading  = ref(false);
+const loadingInvitations = ref(false);
 const switching = ref(null);
 const joining  = ref(false);
 const accessCode = ref('');
+const invitations = ref([]);
 
-const roleColor = (role) => ({ ADMIN: 'error', EDITOR: 'secondary', REVIEWER: 'warning', AUTHOR: 'accent' }[role]);
-const roleLabel = (role) => ({ ADMIN: 'Admin', EDITOR: 'Editor', REVIEWER: 'Revisor', AUTHOR: 'Autor' }[role] || role);
+const roleColor = (role) => ({ ADMIN: 'error', EDITOR: 'secondary', REVIEWER: 'warning', AUTHOR: 'accent', ATTENDEE: 'grey' }[role]);
+const roleLabel = (role) => ({ ADMIN: 'Admin', EDITOR: 'Editor', REVIEWER: 'Revisor', AUTHOR: 'Autor', ATTENDEE: 'Asistente' }[role] || role);
+
+const loadInvitations = async () => {
+  loadingInvitations.value = true;
+  try {
+    const { data } = await invitationsApi.myInvitations();
+    invitations.value = data.data;
+  } catch (e) {
+    console.error(e);
+  } finally {
+    loadingInvitations.value = false;
+  }
+};
+
+onMounted(loadInvitations);
+
+const respondInvitation = async (token, accept) => {
+  try {
+    const { data } = await invitationsApi.respond(token, accept);
+    alert(data.data.message);
+    await loadInvitations();
+    await auth.refreshMe();
+  } catch (e) {
+    alert(e.response?.data?.error || 'Error al procesar la invitación');
+  }
+};
 
 const select = async (eventId) => {
   switching.value = eventId;
@@ -205,17 +255,18 @@ const handleLogout = async () => {
   position: relative;
 }
 
-/* Bolas de color de fondo del branding */
+/* Animated background blobs */
 .blob-1 {
   position: absolute;
   top: -10%;
   left: -10%;
   width: 600px;
   height: 600px;
-  background: rgba(255, 255, 255, 0.02);
+  background: rgba(56, 189, 248, 0.03);
   filter: blur(100px);
   border-radius: 50%;
   pointer-events: none;
+  animation: es-blob-drift 14s ease-in-out infinite;
 }
 .blob-2 {
   position: absolute;
@@ -223,10 +274,17 @@ const handleLogout = async () => {
   right: -10%;
   width: 700px;
   height: 700px;
-  background: rgba(148, 163, 184, 0.02);
+  background: rgba(99, 102, 241, 0.03);
   filter: blur(120px);
   border-radius: 50%;
   pointer-events: none;
+  animation: es-blob-drift 18s ease-in-out infinite reverse;
+}
+
+@keyframes es-blob-drift {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33% { transform: translate(25px, -15px) scale(1.03); }
+  66% { transform: translate(-15px, 20px) scale(0.97); }
 }
 
 /* Efecto Cristal puro */
@@ -259,6 +317,17 @@ const handleLogout = async () => {
 
 .gap-2 {
   gap: 8px;
+}
+
+/* Stagger entrance animation for congress cards */
+:deep(.v-row > .v-col:nth-child(1)) { animation: card-stagger 0.6s 0.1s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+:deep(.v-row > .v-col:nth-child(2)) { animation: card-stagger 0.6s 0.2s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+:deep(.v-row > .v-col:nth-child(3)) { animation: card-stagger 0.6s 0.3s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+:deep(.v-row > .v-col:nth-child(4)) { animation: card-stagger 0.6s 0.4s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+
+@keyframes card-stagger {
+  from { opacity: 0; transform: translateY(20px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
 }
 
 /* Placeholder claro para input fondo oscuro */
